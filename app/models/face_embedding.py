@@ -1,11 +1,4 @@
-"""
-ORM model สำหรับ face embedding
-
-Embedding vector เก็บเป็น BYTEA (numpy array ที่ serialize แล้ว)
-ในการ deploy ขนาดใหญ่ ให้เปลี่ยนเป็น pgvector สำหรับ ANN similarity search
-แต่สำหรับโรงงานที่มีพนักงาน < 5,000 คน in-memory FAISS index เร็วกว่า
-DB-side ANN และหลีกเลี่ยง overhead การ operate pgvector
-"""
+"""ORM Model ตารางเวกเตอร์ใบหน้าพนักงาน (face_embeddings)"""
 
 from __future__ import annotations
 

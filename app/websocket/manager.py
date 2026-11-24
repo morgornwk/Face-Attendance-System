@@ -1,3 +1,5 @@
+"""ConnectionManager จัดการการเชื่อมต่อ WebSocket และกระจาย Attendance Events แบบ Real-time"""
+
 from __future__ import annotations
 
 import asyncio
@@ -49,12 +51,14 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket) -> None:
         """รับ connection ใหม่ ส่ง welcome message กลับ"""
         await websocket.accept()
-        async with self._lock: self._connections.add(websocket)
+        async with self._lock:
+            self._connections.add(websocket)
         logger.info("ws_client_connected", total_connections=len(self._connections))
 
     async def disconnect(self, websocket: WebSocket) -> None:
         """ลบ connection ที่หลุด"""
-        async with self._lock: self._connections.discard(websocket)
+        async with self._lock:
+            self._connections.discard(websocket)
         logger.info("ws_client_disconnected", total_connections=len(self._connections))
 
     @property

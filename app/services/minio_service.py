@@ -1,12 +1,11 @@
-"""
-MinIO client service for managing face images and attendance snapshots.
-"""
+"""Service จัดการอัปโหลดและจัดเก็บรูปภาพใบหน้าบน MinIO Object Storage"""
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
-import asyncio
+from pathlib import Path
 import structlog
 from minio import Minio
 from minio.error import S3Error
@@ -28,11 +27,16 @@ class MinioService:
             secure=settings.minio_secure,
         )
 
+    _MIME_TYPES = {
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+    }
+
     def ensure_bucket_exists(self) -> None:
         """Checks if the images bucket exists. If not, creates it and sets a public read-only policy."""
         try:
-            found = self.client.bucket_exists(self.bucket_name)
-            if not found:
+            if not self.client.bucket_exists(self.bucket_name):
                 logger.info("minio_bucket_not_found", bucket=self.bucket_name)
                 self.client.make_bucket(self.bucket_name)
                 logger.info("minio_bucket_created", bucket=self.bucket_name)
@@ -53,29 +57,23 @@ class MinioService:
                 logger.info("minio_bucket_policy_configured", bucket=self.bucket_name)
             else:
                 logger.debug("minio_bucket_exists", bucket=self.bucket_name)
-        except S3Error as e:
-            logger.error("minio_bucket_initialization_failed", error=str(e))
-            raise e
+        except S3Error:
+            logger.exception("minio_bucket_initialization_failed", bucket=self.bucket_name)
+            raise
 
     def upload_image(self, image_bytes: bytes, filename: str) -> str:
         """
         Uploads an image byte array to MinIO.
         Returns the external HTTP URL.
         """
-        content_type = "image/jpeg"
-        if filename.lower().endswith(".png"):
-            content_type = "image/png"
-        elif filename.lower().endswith(".webp"):
-            content_type = "image/webp"
-        elif filename.lower().endswith(".bmp"):
-            content_type = "image/bmp"
+        ext = Path(filename).suffix.lower()
+        content_type = self._MIME_TYPES.get(ext, "image/jpeg")
 
-        data_stream = io.BytesIO(image_bytes)
         try:
             self.client.put_object(
                 bucket_name=self.bucket_name,
                 object_name=filename,
-                data=data_stream,
+                data=io.BytesIO(image_bytes),
                 length=len(image_bytes),
                 content_type=content_type,
             )
@@ -83,9 +81,9 @@ class MinioService:
             external_url = f"{settings.minio_external_endpoint.rstrip('/')}/{self.bucket_name}/{filename}"
             logger.info("minio_image_uploaded", filename=filename, url=external_url)
             return external_url
-        except S3Error as e:
-            logger.error("minio_image_upload_failed", filename=filename, error=str(e))
-            raise e
+        except S3Error:
+            logger.exception("minio_image_upload_failed", filename=filename)
+            raise
 
     async def upload_image_async(self, image_bytes: bytes, filename: str) -> str:
         """อัปโหลดรูปภาพขึ้น MinIO แบบ Non-blocking (รันใน thread pool)"""

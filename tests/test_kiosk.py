@@ -1,11 +1,10 @@
 # pyrefly: ignore [missing-import]
 import pytest
 import numpy as np
-import time
 from uuid import uuid4
 from unittest.mock import AsyncMock
 
-from gui.run_kiosk import _recognize, _handle_force
+from gui.run_kiosk import _recognize
 from app.ai.recognition import RecognitionMatch, embedding_index
 
 

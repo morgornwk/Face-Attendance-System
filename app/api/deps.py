@@ -1,13 +1,4 @@
-"""
-FastAPI dependency providers
-
-Database session, service instance และ auth check ทั้งหมด
-ถูก provide เป็น dependency ทำให้ router บางมาก ไม่มี setup, ไม่มี teardown
-Session lifecycle จัดการที่นี่ผ่าน async generator
-
-Session-per-request: HTTP request แต่ละรายการได้รับ AsyncSession ของตัวเอง
-นี่คือ pattern มาตรฐาน ห้าม share session ข้าม request เด็ดขาด
-"""
+"""FastAPI Dependency Providers สำหรับ Database Session และ Services"""
 
 from __future__ import annotations
 

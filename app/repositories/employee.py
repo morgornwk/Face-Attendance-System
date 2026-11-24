@@ -1,10 +1,4 @@
-"""
-Repository เฉพาะสำหรับ Employee domain
-
-Query ที่เป็นของ domain นี้อยู่ที่นี่เท่านั้น ไม่ใช่ใน service
-Service layer เรียกใช้แบบระบุชื่อ method ชัดเจน
-ไม่ควรสร้าง SQL condition เองใน service layer เด็ดขาด
-"""
+"""Repository จัดการการค้นหาและอัปเดตข้อมูลพนักงานในฐานข้อมูล"""
 
 from __future__ import annotations
 

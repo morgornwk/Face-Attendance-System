@@ -1,10 +1,4 @@
-"""
-Attendance API router
-
-Router สำหรับดูประวัติการเข้างาน
-Attendance record ถูกสร้างโดย AI pipeline (AttendanceEngine) ไม่ใช่ API
-Router นี้เป็น read-only สำหรับ dashboard/frontend
-"""
+"""API Router สำหรับดึงประวัติการลงเวลาเข้า-ออกงาน"""
 
 from __future__ import annotations
 

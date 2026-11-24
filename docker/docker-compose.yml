@@ -27,7 +27,7 @@ services:
     env_file:
       - .env.docker
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
     image: redis:8
     container_name: face_attendance_redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     restart: unless-stopped
 
   minio:
@@ -46,8 +46,8 @@ services:
       MINIO_ROOT_USER: moragon
       MINIO_ROOT_PASSWORD: moragon1234
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9002:9000"
+      - "9003:9001"
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"

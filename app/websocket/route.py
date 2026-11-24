@@ -1,25 +1,4 @@
-"""
-WebSocket route สำหรับ real-time attendance feed
-
-Client เชื่อมที่ ws://host/ws/attendance แล้วจะได้รับ JSON event
-ทุกครั้งที่ AI pipeline ตรวจพบพนักงาน check-in หรือ check-out
-
-ตัวอย่าง event ที่ client จะได้รับ:
-{
-    "event_type": "check_in",
-    "employee_id": "550e8400-e29b-41d4-a716-446655440000",
-    "employee_code": "EMP-001",
-    "full_name": "สมชาย ใจดี",
-    "camera_id": "entrance-cam-01",
-    "confidence": 0.892,
-    "timestamp": "2026-05-21T08:01:23+07:00"
-}
-
-Client สามารถส่ง "ping" message กลับมาเพื่อ keep-alive
-Server จะตอบ "pong" กลับไป
-
-WebSocket connection ไม่ต้อง auth ในตอนนี้ (เพิ่มทีหลังพร้อมกับ HTTP auth)
-"""
+"""WebSocket Route สำหรับส่งข้อมูลการลงเวลาเข้า-ออกงานแบบ Real-time ไปยัง Dashboard"""
 
 from __future__ import annotations
 
@@ -52,7 +31,8 @@ async def attendance_feed(websocket: WebSocket) -> None:
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
-        await attendance_manager.disconnect(websocket)
+        pass
     except Exception:
         logger.exception("ws_unexpected_error")
+    finally:
         await attendance_manager.disconnect(websocket)

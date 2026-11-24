@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Infrastructure helper to check database availability before application startup.
-"""
+"""สคริปต์ตรวจสอบความพร้อมของฐานข้อมูล PostgreSQL ก่อนเริ่มการทำงานของระบบ"""
 
 import asyncio
 import os

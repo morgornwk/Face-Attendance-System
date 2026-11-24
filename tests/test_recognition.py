@@ -2,7 +2,7 @@
 import pytest
 import numpy as np
 from uuid import uuid4
-from app.ai.recognition import EmployeeEmbeddingIndex, RecognitionMatch
+from app.ai.recognition import EmployeeEmbeddingIndex
 
 
 @pytest.mark.asyncio

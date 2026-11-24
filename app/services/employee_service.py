@@ -1,15 +1,4 @@
-"""
-Employee service — ศูนย์กลาง business logic ของ employee domain
-
-Service คือที่อยู่ของ business rule เท่านั้น Layer นี้:
-    - ประสาน repository call
-    - บังคับใช้ invariant (เช่น ไม่ลบพนักงานที่มี shift ในอนาคต)
-    - ส่ง domain event (face cache invalidation)
-    - ควบคุม transaction boundary ผ่าน session
-
-รูปแบบ Dependency Injection: service รับ dependency (repository, cache)
-ตอน construction ผ่าน FastAPI Depends ทำให้ test ง่ายมากด้วย mock object
-"""
+"""Service จัดการ Business Logic ของพนักงาน (สร้าง, ค้นหา, แก้ไข, ปิดการใช้งาน)"""
 
 from __future__ import annotations
 

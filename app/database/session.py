@@ -1,3 +1,5 @@
+"""Async SQLAlchemy Engine และ Sessionmaker สำหรับเชื่อมต่อ PostgreSQL"""
+
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

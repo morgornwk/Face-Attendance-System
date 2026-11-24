@@ -18,7 +18,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 
-from app.ai.engine import crop_and_encode_face, face_engine
+from app.ai.engine import face_engine
 from app.ai.recognition import embedding_index
 from app.core.config import settings
 from app.database.session import async_session_factory
@@ -47,7 +47,6 @@ MIN_REGISTER_SCORE  = 0.70         # เพิ่มเป็น 0.70 เพื�
 CHECKOUT_WAIT_SEC   = 600        # 10 นาที
 CAMERA_W, CAMERA_H  = 1280, 720
 HEADER_H, FOOTER_H  = 62, 42
-MSG_DURATION         = {True: 4.0, False: 3.0}   # register=4s, force=3s
 DETECT_EVERY_N       = 3           # รัน AI ทุก N เฟรม (ประหยัด CPU 60-70%)
 WINDOW_NAME          = "Face Attendance System"
 
@@ -298,14 +297,13 @@ async def register_face_flow(frame, engine, session_factory):
     emb_bytes = face.embedding.tobytes()
 
     # ดักซ้ำ — ตรวจว่าใบหน้านี้เคยลงทะเบียนแล้วหรือยัง
-    if embedding_index.size > 0:
-        match = await embedding_index.find_match(face.embedding)
-        if match and match.is_confident:
-            async with session_factory() as s:
-                emp = await EmployeeRepository(s).get_by_id(match.employee_id)
-                if emp:
-                    return False, f"Already Registered: {emp.full_name} ({emp.employee_code})", None
-                return False, "Face already registered in system.", None
+    match = await embedding_index.find_match(face.embedding)
+    if match and match.is_confident:
+        async with session_factory() as s:
+            emp = await EmployeeRepository(s).get_by_id(match.employee_id)
+            if emp:
+                return False, f"Already Registered: {emp.full_name} ({emp.employee_code})", None
+            return False, "Face already registered in system.", None
 
     # สร้าง employee + บันทึก
     async with session_factory() as s:
@@ -327,11 +325,9 @@ async def register_face_flow(frame, engine, session_factory):
         name = input(f"  Enter name (Enter='{default}'): ").strip() or default
         print("=" * 40)
 
-        existing = await repo.get_by_employee_code(emp_code)
-        emp = existing or Employee(employee_code=emp_code, full_name=name, department="General", position="Staff")
-        if not existing:
-            s.add(emp)
-            await s.flush()
+        emp = Employee(employee_code=emp_code, full_name=name, department="General", position="Staff")
+        s.add(emp)
+        await s.flush()
 
         # Encode รูปภาพเต็มเฟรมแบบคลีน (ไม่มีกรอบ) เป็น JPEG bytes
         _, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
@@ -348,21 +344,30 @@ async def register_face_flow(frame, engine, session_factory):
     return True, f"Registered: {name} ({emp_code})", str(emp.id)
 
 
+async def _load_employee_names(session_factory) -> dict[str, str]:
+    """โหลด id -> full_name ของพนักงานที่ active ทั้งหมด"""
+    async with session_factory() as s:
+        return {str(e.id): e.full_name for e in await EmployeeRepository(s).get_active_employees()}
+
+
 # ── Key Handlers ─────────────────────────────────────────────────────
 
 async def _handle_register(frame, emp_names):
     """ปุ่ม R — ลงทะเบียนใบหน้า"""
     print("\n[REGISTER] Capturing face...")
-    ok, msg, eid = await register_face_flow(frame, face_engine, async_session_factory)
-    if ok and eid:
-        async with async_session_factory() as s:
+    try:
+        ok, msg, eid = await register_face_flow(frame, face_engine, async_session_factory)
+        if ok and eid:
             emp_names.clear()
-            for e in await EmployeeRepository(s).get_active_employees():
-                emp_names[str(e.id)] = e.full_name
-        print(f"[OK] {msg}")
-    else:
-        print(f"[FAIL] {msg}")
-    return msg, time.monotonic() + 4.0
+            emp_names.update(await _load_employee_names(async_session_factory))
+            print(f"[OK] {msg}")
+        else:
+            print(f"[FAIL] {msg}")
+        return msg, time.monotonic() + 4.0
+    except Exception as e:
+        err_msg = f"Registration error: {e}"
+        print(f"[ERROR] {err_msg}")
+        return err_msg, time.monotonic() + 4.0
 
 
 def _handle_force(emp_id, name, conf, emp_status, events, action):
@@ -400,9 +405,6 @@ def _handle_force(emp_id, name, conf, emp_status, events, action):
 
 async def _recognize(face, emp_names, emp_status, events):
     """จับคู่ใบหน้า + จัดการเช็คอิน/เช็คเอาท์อัตโนมัติ → (name, emp_id, conf, status)"""
-    if embedding_index.size == 0:
-        return None, None, 0.0, "unknown"
-
     match = await embedding_index.find_match(face.embedding)
     if not match:
         return None, None, 0.0, "unknown"
@@ -427,7 +429,7 @@ async def _recognize(face, emp_names, emp_status, events):
         # โชว์สีเขียว CHECKED IN เป็นเวลา 5 วินาทีแรกของการสแกน
         if now - st["check_in_time"] < 5.0:
             return name, eid, conf, "checked_in"
-        elif now - st["check_in_time"] >= CHECKOUT_WAIT_SEC:
+        if now - st["check_in_time"] >= CHECKOUT_WAIT_SEC:
             # ผ่าน 10 นาที -> เช็คเอาท์อัตโนมัติ
             st["status"] = "checked_out"
             st["check_out_time"] = now
@@ -435,18 +437,14 @@ async def _recognize(face, emp_names, emp_status, events):
             events.append(evt)
             print(f"[CHECK-OUT] {name} [{conf:.0%}] @ {evt['time']}")
             return name, eid, conf, "checked_out"
-        else:
-            # หลังจาก 5 วินาที แสดงสถานะปกติเป็น RECOGNIZED
-            return name, eid, conf, "recognized"
+        return name, eid, conf, "recognized"
 
-    elif st["status"] == "checked_out":
+    if st["status"] == "checked_out":
         # โชว์สีส้ม CHECKED OUT เป็นเวลา 5 วินาทีแรกของการสแกน
         checkout_time = st.get("check_out_time", 0.0)
         if now - checkout_time < 5.0:
             return name, eid, conf, "checked_out"
-        else:
-            # หลังจาก 5 วินาที แสดงสถานะปกติเป็น RECOGNIZED
-            return name, eid, conf, "recognized"
+        return name, eid, conf, "recognized"
 
     return name, eid, conf, st["status"]
 
@@ -459,15 +457,20 @@ async def main():
     face_engine.load()
     print("[OK] AI engine ready")
 
+    print("[*] Checking storage (MinIO)...")
+    try:
+        await asyncio.to_thread(minio_service.ensure_bucket_exists)
+        print(f"[OK] MinIO storage connected ({settings.minio_endpoint})")
+    except Exception as e:
+        print(f"[WARNING] MinIO is not reachable ({settings.minio_endpoint}): {e}")
+        print("          Face registration will fail if MinIO is not running.")
+
     print("[*] Loading face embeddings...")
     async with async_session_factory() as s:
         await EmbeddingCacheService(s).rebuild_index()
     print(f"[OK] {embedding_index.size} registered faces loaded")
 
-    emp_names: dict[str, str] = {}
-    async with async_session_factory() as s:
-        for e in await EmployeeRepository(s).get_active_employees():
-            emp_names[str(e.id)] = e.full_name
+    emp_names = await _load_employee_names(async_session_factory)
 
     if not embedding_index.size:
         print("\n[!] No faces registered yet — press 'R' to register.\n")
@@ -486,6 +489,7 @@ async def main():
     fps, fc, ft = 0.0, 0, time.monotonic()
     msg, msg_until = "", 0.0
     cached_faces = []  # เก็บผล detect ไว้ใช้ซ้ำระหว่างเฟรม
+    clean_frame = None
 
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, CAMERA_W, CAMERA_H)
@@ -499,23 +503,21 @@ async def main():
                 continue
             frame = cv2.flip(frame, 1)
 
-            # เก็บรูปภาพเต็มเฟรมแบบคลีน (ไม่มีกรอบหรือข้อความใดๆ) เพื่อส่งวิเคราะห์ AI และบันทึก
-            clean_frame = frame.copy()
-
-            cv2.subtract(frame, _vignette(*frame.shape[:2]), frame)
-
             # FPS
             fc += 1
             el = time.monotonic() - ft
             if el >= 1.0:
                 fps, fc, ft = fc / el, 0, time.monotonic()
 
-            # ตรวจจับทุก N เฟรมบน clean_frame (ประหยัด CPU 60-70% และไม่โดนกรอบ UI รบกวน)
+            # ตรวจจับทุก N เฟรมบน frame ดิบ (ประหยัด CPU/RAM ไม่ต้องคัดลอก memory 80+ MB/s ทุกเฟรม)
             if fc % DETECT_EVERY_N == 0:
+                clean_frame = frame.copy()
                 cached_faces = await face_engine.analyze_frame(clean_frame)
             good = [f for f in cached_faces if f.det_score >= MIN_DET_SCORE]
             active_id = active_name = None
             active_conf = 0.0
+
+            cv2.subtract(frame, _vignette(*frame.shape[:2]), frame)
 
             for face in good:
                 name, eid, conf, status = await _recognize(face, emp_names, emp_status, events)
@@ -536,7 +538,8 @@ async def main():
             if key in (ord("q"), ord("Q"), 27):
                 break
             elif key in (ord("r"), ord("R")):
-                msg, msg_until = await _handle_register(clean_frame, emp_names)
+                reg_frame = clean_frame if clean_frame is not None else frame
+                msg, msg_until = await _handle_register(reg_frame, emp_names)
             elif key in (ord("i"), ord("I")):
                 msg, msg_until = _handle_force(active_id, active_name, active_conf,
                                                emp_status, events, "check_in")

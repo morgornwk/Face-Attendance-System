@@ -1,10 +1,4 @@
-"""
-Repository สำหรับบันทึกการเข้างาน
-
-การออกแบบที่สำคัญ: attendance record เป็นแบบ append-only จาก AI engine
-ไม่มีการลบ record ใดๆ มีแค่ soft-invalidate เท่านั้น
-เพื่อรักษา audit trail ไว้ตลอดเวลา
-"""
+"""Repository จัดการบันทึกเวลาเข้า-ออกงาน และประวัติการลงเวลา"""
 
 from __future__ import annotations
 

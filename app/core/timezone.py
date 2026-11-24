@@ -1,10 +1,4 @@
-"""
-Timezone helper locked to Asia/Bangkok
-
-This module ensures that all datetimes and dates generated across servers
-consistently use the Asia/Bangkok local timezone, preventing mismatches
-when deployed to servers in other regions.
-"""
+"""Timezone Helper กำหนดและคืนค่า Datetime/Date ปัจจุบันในโซน Asia/Bangkok"""
 
 from datetime import date, datetime
 from zoneinfo import ZoneInfo

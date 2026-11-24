@@ -1,10 +1,4 @@
-"""
-Declarative base และ mixin ร่วมสำหรับ ORM model ทั้งหมด
-
-การใช้ mixin สำหรับ field ร่วม (id, timestamps) ทำให้ทุก model มีความสอดคล้องกัน
-และลดการ copy-paste ระหว่าง model UUID primary key ถูกสร้างฝั่ง application
-เพื่อความคาดเดาได้และหลีกเลี่ยง round-trip ไป database
-"""
+"""SQLAlchemy Base Model และ Mixins (UUID, Timestamps, SoftDelete) สำหรับ Database Models ทั้งหมด"""
 
 from __future__ import annotations
 

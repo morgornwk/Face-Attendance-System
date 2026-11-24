@@ -1,24 +1,4 @@
-"""
-Realtime attendance engine — worker หลักของ production
-
-นี่ไม่ใช่ FastAPI route แต่เป็น long-running asyncio coroutine
-ที่เริ่มใน application lifespan และรันตลอดอายุของ app
-
-สถาปัตยกรรม:
-CameraStreamReader -> frame_queue -> AttendanceEngine -> WebSocket broadcast
-    (producer)                           (consumer)             (dashboard)
-
-Queue แยก producer ออกจาก consumer ถ้า recognition ช้า
-frame จะ back-pressure และ drop (LIFO maxsize=1 ต่อกล้อง)
-การ drop frame เป็นเจตนา — สำหรับ attendance เราต้องการ frame ล่าสุด
-ไม่ใช่คิว backlog ของ frame เก่า
-
-การกำจัดซ้ำ (Deduplication) แยก check-in กับ check-out:
-- Check-in dedup: Redis key "attendance:checkin:{employee_id}:{date}" TTL 4 ชั่วโมง
-    บันทึก check-in ครั้งเดียวต่อวัน ป้องกัน duplicate record
-- Check-out dedup: Redis key "attendance:checkout:{employee_id}:{date}" TTL 5 นาที
-    อนุญาตให้ update check-out ทุก 5 นาที เพื่อจับเวลาออกงานล่าสุด
-"""
+"""Realtime Attendance Engine จัดการตรวจจับ จำแนกใบหน้า และบันทึกเวลาเข้า-ออกงานแบบ Real-time"""
 
 from __future__ import annotations
 
@@ -36,6 +16,9 @@ from app.ai.engine import face_engine, crop_and_encode_face
 from app.ai.recognition import embedding_index
 from app.camera.face_tracker import FaceTracker
 from app.camera.stream_reader import CameraConfig, stream_frames
+from app.models.attendance import AttendanceRecord
+from app.repositories.attendance import AttendanceRepository
+from app.repositories.employee import EmployeeRepository
 from app.websocket.manager import attendance_manager, AttendanceEvent
 
 logger = structlog.get_logger(__name__)
@@ -119,30 +102,26 @@ class AttendanceEngine:
         checkout_key = self._dedup_key("checkout", employee_id)
 
         async with self._session_factory() as session:
-            from app.repositories.attendance import AttendanceRepository
-            from app.repositories.employee import EmployeeRepository
-            from app.models.attendance import AttendanceRecord
-
             repo = AttendanceRepository(session)
             now_time = get_local_now()
             work_date = now_time.date()
 
             record = await repo.get_today_record(employee_id)
+            action = "check_out" if record else "check_in"
+            dedup_key = checkout_key if record else checkin_key
+            dedup_ttl = CHECKOUT_DEDUP_TTL if record else CHECKIN_DEDUP_TTL
 
-            # ดึงข้อมูลพนักงานสำหรับ WebSocket event (แสดงชื่อบน dashboard)
-            emp_repo = EmployeeRepository(session)
-            employee = await emp_repo.get_by_id(employee_id)
-            emp_code = employee.employee_code if employee else None
-            emp_name = employee.full_name if employee else None
+            # ถ้าเพิ่งบันทึกไป ไม่ต้องทำอะไรซ้ำ
+            if await self._redis.exists(dedup_key):
+                return
+
+            emp = await EmployeeRepository(session).get_by_id(employee_id)
+            if not emp:
+                return
+
+            image_url = await self._crop_and_upload_face(face, frame)
 
             if record is None:
-                # สร้าง record ใหม่ (ครั้งเดียวต่อวัน)
-                if await self._redis.exists(checkin_key):
-                    return  # check-in แล้ววันนี้
-
-                # Crop และ upload
-                image_url = await self._crop_and_upload_face(face, frame)
-
                 record = AttendanceRecord(
                     employee_id=employee_id,
                     work_date=work_date,
@@ -152,55 +131,29 @@ class AttendanceEngine:
                     image_url=image_url,
                 )
                 await repo.create(record)
-                await session.commit()
-
-                await self._redis.setex(checkin_key, CHECKIN_DEDUP_TTL, "1")
-                logger.info(
-                    "attendance_checkin",
-                    employee_id=str(employee_id),
-                    camera_id=self._config.camera_id,
-                    confidence=round(match.similarity, 3),
-                )
-
-                # Broadcast check-in event ไป dashboard
-                await self._broadcast_event(
-                    "check_in",
-                    employee_id,
-                    emp_code,
-                    emp_name,
-                    match.similarity,
-                    now_time,
-                )
             else:
-                # update เวลาออกงาน (ทุก 5 นาที)
-                if await self._redis.exists(checkout_key):
-                    return  # เพิ่ง update check-out ไป ยังไม่ถึงเวลา
-
-                # Crop และ upload
-                image_url = await self._crop_and_upload_face(face, frame)
-
                 record.check_out_time = now_time
                 record.camera_id = self._config.camera_id
                 record.image_url = image_url
-                await session.commit()
 
-                await self._redis.setex(checkout_key, CHECKOUT_DEDUP_TTL, "1")
-                logger.info(
-                    "attendance_checkout",
-                    employee_id=str(employee_id),
-                    camera_id=self._config.camera_id,
-                    confidence=round(match.similarity, 3),
-                )
+            await session.commit()
+            await self._redis.setex(dedup_key, dedup_ttl, "1")
 
-                # Broadcast check-out event ไป dashboard
-                await self._broadcast_event(
-                    "check_out",
-                    employee_id,
-                    emp_code,
-                    emp_name,
-                    match.similarity,
-                    now_time,
-                )
+            logger.info(
+                f"attendance_{action}",
+                employee_id=str(employee_id),
+                camera_id=self._config.camera_id,
+                confidence=round(match.similarity, 3),
+            )
+
+            await self._broadcast_event(
+                action,
+                employee_id,
+                emp.employee_code,
+                emp.full_name,
+                match.similarity,
+                now_time,
+            )
 
     async def _broadcast_event(
         self,

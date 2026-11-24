@@ -1,10 +1,4 @@
-"""
-ORM model สำหรับบันทึกการเข้างาน
-
-Attendance record เป็น write-once จาก AI pipeline
-check_out_time เป็น nullable เพราะระบบบันทึกการเข้างานทันที
-แต่การออกงานบันทึกเมื่อตรวจพบใบหน้าที่กล้อง exit หรือ end-of-shift cron
-"""
+"""ORM Model ตารางบันทึกการเข้า-ออกงาน (attendance_records)"""
 
 from __future__ import annotations
 

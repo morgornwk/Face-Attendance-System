@@ -1,13 +1,4 @@
-"""
-Request tracing middleware
-
-Request ทุกรายการที่เข้ามาจะได้รับ trace_id ที่ inject เข้าไปใน structlog contextvars
-หมายความว่า log ทุกบรรทัดที่ emit ระหว่าง request นั้นในทุก layer
-จะมี trace_id โดยอัตโนมัติโดยไม่ต้องส่งต่อ parameter
-
-ใน Kibana หรือ Datadog: filter ด้วย trace_id เดียว เห็นทุก log ตั้งแต่
-router -> service -> repository -> AI engine ทั้งหมดในหนึ่ง request
-"""
+"""HTTP Middleware สำหรับสร้าง Trace ID และบันทึก Log รายการ Request พร้อมจับเวลา Duration"""
 
 from __future__ import annotations
 

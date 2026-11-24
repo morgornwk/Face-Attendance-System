@@ -1,12 +1,4 @@
-"""
-Environment-based configuration ด้วย Pydantic Settings
-
-ทุกค่ามาจาก environment variable (หรือ .env file)
-ห้าม hardcode URL, credentials, หรือ threshold ในโค้ดเด็ดขาด
-
-@cached_property บน camera_configs หมายความว่า parsing เกิดขึ้นครั้งเดียว
-ไม่ใช่ทุกครั้งที่เข้าถึง
-"""
+"""การตั้งค่าระบบ (Configuration) โหลดจาก Environment Variables และ .env ด้วย Pydantic Settings"""
 
 from __future__ import annotations
 

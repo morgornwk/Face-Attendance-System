@@ -1,13 +1,4 @@
-"""
-Structured JSON logging สำหรับ production
-
-ทำไมต้องใช้ structlog? stdlib logging ของ Python ส่งออก unstructured text
-ใน production, log ไปที่ aggregator (Datadog, Loki, ELK) Log แบบ JSON
-หมายความว่า parser overhead เป็นศูนย์ และค้นหาตาม field ได้ทันที
-
-หมายเหตุ performance: Processor ถูก chain กัน ทำให้ chain เบาที่สุด
-ห้ามเพิ่ม processor ที่ทำ I/O เด็ดขาด (เช่น DB call ใน log processor)
-"""
+"""Structured Logging ด้วย Structlog รองรับ JSON Logs สำหรับ Production และ Console Logs สำหรับ Dev"""
 
 from __future__ import annotations
 

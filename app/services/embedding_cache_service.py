@@ -1,3 +1,5 @@
+"""Service ซิงค์และสร้าง In-Memory Embedding Index จากฐานข้อมูล"""
+
 from __future__ import annotations
 
 import structlog

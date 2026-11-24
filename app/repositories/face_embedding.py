@@ -1,14 +1,4 @@
-"""
-Repository สำหรับจัดเก็บ face embedding
-
-Embedding ถูกเก็บเป็น float array ดิบใน PostgreSQL โดยใช้ extension pgvector
-(หรือ BYTEA ถ้าไม่มี pgvector) Repository นี้ซ่อน detail การเก็บข้อมูลนั้น
-ไม่ให้ service layer เห็นโดยสิ้นเชิง
-
-หมายเหตุ performance: เราไม่โหลด embedding ทั้งหมดใน hot loop
-Recognition engine ดึง embedding แบบ bulk ตอน startup แล้ว cache ใน Redis/memory
-Repository นี้ถูกเรียกแค่ตอน registration และ cache invalidation เท่านั้น
-"""
+"""Repository จัดการข้อมูล Face Embedding (บันทึก, ค้นหา, Upsert, ลบ)"""
 
 from __future__ import annotations
 

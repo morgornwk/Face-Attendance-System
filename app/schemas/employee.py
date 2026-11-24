@@ -1,16 +1,4 @@
-"""
-Pydantic v2 schemas สำหรับ Employee domain
-
-รูปแบบการแบ่งชั้น schema:
-    EmployeeBase -> field ร่วม (ไม่มี ID, ไม่มี timestamp)
-    EmployeeCreate -> สิ่งที่ API รับตอน POST
-    EmployeeUpdate -> body ของ PATCH (ทุก field เป็น optional)
-    EmployeeResponse -> สิ่งที่ API ส่งกลับ (รวม computed fields)
-    EmployeeListResponse -> wrapper สำหรับรายการแบบ paginated
-
-ป้องกัน over-posting (client ไม่สามารถตั้ง face_registered โดยตรงได้)
-และ under-exposure (ไม่เคย leak internal DB fields)
-"""
+"""Pydantic Schemas สำหรับ Request/Response ของข้อมูลพนักงาน"""
 
 from __future__ import annotations
 

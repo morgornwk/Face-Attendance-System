@@ -1,18 +1,4 @@
-"""
-Face recognition: จับคู่ embedding กับ employee index ใน memory
-
-Employee index คือ numpy matrix ใน memory สำหรับ N พนักงาน
-การจำแนกคือ matrix multiplication ครั้งเดียว: O(N * 512)
-สำหรับ N=5,000 คน ใช้เวลา ~0.3ms บน CPU สมัยใหม่ — ไม่ต้องใช้ GPU เลย
-
-Index ถูกโหลดตอน startup จาก DB และ refresh ผ่าน Redis pub/sub
-เมื่อมีการลงทะเบียนใบหน้าใหม่
-
-ทำไมไม่ใช้ FAISS?
-สำหรับพนักงานน้อยกว่า 10,000 คน numpy matmul เร็วกว่า FAISS ANN
-เพราะ FAISS overhead (quantization, index lookup) สูงกว่าต้นทุน brute-force
-ที่ scale นี้ เปลี่ยนเป็น FAISS เมื่อ N > 50,000 คน
-"""
+"""In-Memory Cosine Similarity Search Index สำหรับจับคู่เวกเตอร์ใบหน้ากับพนักงานในระบบ"""
 
 from __future__ import annotations
 
@@ -70,6 +56,10 @@ class EmployeeEmbeddingIndex:
 
         ids = list(embeddings.keys())
         matrix = np.stack([embeddings[eid] for eid in ids]).astype(np.float32)
+        # ตรวจสอบและบังคับ L2 normalize แถวเวกเตอร์ เพื่อให้ cosine similarity ถูกต้อง 100%
+        norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        matrix = matrix / norms
 
         async with self._lock:
             self._employee_ids = ids

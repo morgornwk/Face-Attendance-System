@@ -1,3 +1,5 @@
+"""Pydantic Schemas สำหรับ Query และ Response ข้อมูลประวัติการลงเวลาเข้างาน"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

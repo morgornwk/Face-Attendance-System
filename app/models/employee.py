@@ -1,9 +1,4 @@
-"""
-ORM model สำหรับพนักงาน
-
-หมายเหตุการแยกส่วน: ORM model ตั้งใจให้เบาที่สุด ไม่มี business logic ที่นี่
-มันเป็นแค่ data contract กับ database เท่านั้น
-"""
+"""ORM Model ตารางพนักงาน (employees)"""
 
 from __future__ import annotations
 

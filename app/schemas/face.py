@@ -1,3 +1,5 @@
+"""Pydantic Schemas สำหรับผลการลงทะเบียนและตรวจสอบใบหน้า"""
+
 from __future__ import annotations
 
 from uuid import UUID

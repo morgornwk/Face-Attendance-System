@@ -1,23 +1,14 @@
-"""
-Health check endpoint
-
-ทุก production system ต้องมี health check สำหรับ:
-- Load balancer probe (ALB, Nginx, K8s liveness)
-- Monitoring dashboard (Uptime Robot, Datadog)
-- CI/CD deployment verification
-
-Health check ตรวจสอบ dependency ที่สำคัญ (DB, Redis, AI engine)
-ถ้าตัวใดตัวหนึ่ง unhealthy ก็ยังคืน 200 แต่ระบุ status ให้ชัดเจน
-เพราะ partial degradation ดีกว่า full downtime
-"""
+"""API Endpoint ตรวจสอบสถานะความพร้อมของระบบ (Database, Redis, AI Engine, WebSocket)"""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from app.ai.engine import face_engine
 from app.ai.recognition import embedding_index
+from app.database.session import async_session_factory
 from app.websocket.manager import attendance_manager
 
 router = APIRouter(tags=["ระบบ"])
@@ -39,9 +30,6 @@ async def health_check(request: Request) -> HealthResponse:
     # ตรวจ Database
     database_status = "unhealthy"
     try:
-        from app.database.session import async_session_factory
-        from sqlalchemy import text
-
         async with async_session_factory() as session:
             await session.execute(text("SELECT 1"))
         database_status = "connected"

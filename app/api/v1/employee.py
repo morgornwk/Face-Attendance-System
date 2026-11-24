@@ -1,12 +1,4 @@
-"""
-Employee API router
-
-Router เป็นแค่ dispatcher ที่บาง ไม่มี business logic, ไม่มี SQL, ไม่มี AI call
-รับ input (ผ่าน Pydantic validate แล้ว), เรียก service, return ผลลัพธ์
-
-Pattern: ทุก endpoint ใช้ response_model ชัดเจน
-เพื่อ documentation และ filter response อัตโนมัติ (ไม่เคย leak field โดยบังเอิญ)
-"""
+"""API Router สำหรับจัดการข้อมูลพนักงาน (CRUD)"""
 
 from __future__ import annotations
 

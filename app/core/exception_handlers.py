@@ -1,9 +1,4 @@
-"""
-Global FastAPI exception handlers
-
-นี่คือ **ที่เดียว** ที่แปลง domain exception เป็น HTTP response
-Router ไม่ catch exception เลยปล่อยให้ bubble ขึ้นมาถึงที่นี่
-"""
+"""Global Exception Handlers แปลง Domain Exceptions เป็น HTTP JSON Responses กลางของระบบ"""
 
 from __future__ import annotations
 

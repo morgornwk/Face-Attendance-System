@@ -1,15 +1,4 @@
-"""
-Face tracker แบบ IoU สำหรับลด recognition calls
-
-วัตถุประสงค์: หลีกเลี่ยงการรัน recognition บนใบหน้าที่ตรวจพบทุกๆ วินาที
-ถ้า bbox ของใบหน้าซ้อนทับกับที่เห็นใน N วินาทีที่ผ่านมาอย่างมีนัยสำคัญ
-เราถือว่าเป็นคนเดิม ไม่ต้อง recognition ซ้ำ
-
-วิธีนี้ลด recognition calls ได้ ~70-80% ในโรงงาน
-ที่พนักงานเดินผ่าน FOV กล้องหลายวินาที
-
-Tracker เป็นแบบ per-camera, per-worker ไม่ share ข้ามกล้อง
-"""
+"""Face Tracker ติดตามใบหน้าข้ามเฟรมด้วยค่า IoU เพื่อลดการเรียก AI Recognition ซ้ำซ้อน"""
 
 from __future__ import annotations
 

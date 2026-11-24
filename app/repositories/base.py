@@ -1,10 +1,4 @@
-"""
-Generic async repository สำหรับ CRUD operations พื้นฐาน
-
-Domain repository ทั้งหมดสืบทอดมาจากนี้ รูปแบบ Generic[T] ทำให้
-มี type safety ในทุก implementation ORM model type จะไหลผ่านไปถึง
-IDE completion และ static analysis ได้อัตโนมัติ
-"""
+"""Generic Async Repository ให้บริการ CRUD พื้นฐานและ Soft-Delete Filter"""
 
 from __future__ import annotations
 
@@ -35,19 +29,21 @@ class BaseRepository(Generic[ModelT]):
         self._model = model
         self._session = session
 
+    def _not_deleted(self, stmt):
+        """กรองเฉพาะ record ที่ยังไม่ถูก soft-delete (ถ้า model รองรับ)"""
+        if hasattr(self._model, "deleted_at"):
+            return stmt.where(self._model.deleted_at.is_(None))
+        return stmt
+
     # CRUD operations
     async def get_by_id(self, entity_id: UUID) -> ModelT | None:
-        stmt = select(self._model).where(self._model.id == entity_id)
-        if hasattr(self._model, "deleted_at"):
-            stmt = stmt.where(self._model.deleted_at.is_(None))
+        stmt = self._not_deleted(select(self._model).where(self._model.id == entity_id))
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     # get_all รองรับ pagination ด้วย limit และ offset
     async def get_all(self, *, limit: int = 100, offset: int = 0) -> Sequence[ModelT]:
-        stmt = select(self._model).limit(limit).offset(offset)
-        if hasattr(self._model, "deleted_at"):
-            stmt = stmt.where(self._model.deleted_at.is_(None))
+        stmt = self._not_deleted(select(self._model).limit(limit).offset(offset))
         result = await self._session.execute(stmt)
         return result.scalars().all()
 
@@ -55,32 +51,24 @@ class BaseRepository(Generic[ModelT]):
     async def create(self, instance: ModelT) -> ModelT:
         self._session.add(instance)
         await self._session.flush()  # flush ไม่ใช่ commit ผู้เรียกเป็นคนควบคุม transaction
-        await self._session.refresh(
-            instance
-        )  # refresh เพื่อดึงข้อมูลล่าสุดจาก database (เช่น id ที่ถูก auto-generated)
+        await self._session.refresh(instance)
         return instance
 
-    # update จะรับ instance ที่มี id อยู่แล้ว และจะ update ข้อมูลใน database ตาม instance นั้น
     async def delete(self, instance: ModelT) -> None:
         if hasattr(instance, "deleted_at"):
             instance.deleted_at = get_local_now()
-            await self._session.flush()
         else:
             await self._session.delete(instance)
-            await self._session.flush()
+        await self._session.flush()
 
     # ตรวจสอบว่ามี entity ที่มี id นี้อยู่ใน database หรือไม่
     async def exists(self, entity_id: UUID) -> bool:
-        stmt = select(self._model.id).where(self._model.id == entity_id)
-        if hasattr(self._model, "deleted_at"):
-            stmt = stmt.where(self._model.deleted_at.is_(None))
+        stmt = self._not_deleted(select(self._model.id).where(self._model.id == entity_id))
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
 
     # นับจำนวน row ทั้งหมด สำหรับ pagination response
     async def count(self) -> int:
-        stmt = select(func.count()).select_from(self._model)
-        if hasattr(self._model, "deleted_at"):
-            stmt = stmt.where(self._model.deleted_at.is_(None))
+        stmt = self._not_deleted(select(func.count()).select_from(self._model))
         result = await self._session.execute(stmt)
         return result.scalar_one()

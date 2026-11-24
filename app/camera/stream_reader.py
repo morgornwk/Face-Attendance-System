@@ -1,22 +1,4 @@
-"""
-RTSP stream reader พร้อม adaptive frame skipping
-
-การตัดสินใจออกแบบที่สำคัญ:
-
-1. Frame skipping: เราไม่ประมวลผลทุก frame ที่ 25fps ถ้าประมวลผลทุก frame
-    = 25 inference/วินาที/กล้อง ถ้ามี 10 กล้อง = 250 inference/วินาที
-    ฆ่า CPU แน่นอน แทนที่เราประมวลผล 1 frame ต่อ PROCESS_INTERVAL วินาที
-
-2. Reconnection อัตโนมัติ: RTSP stream หลุดบ่อย reader reconnect
-    ด้วย exponential backoff โดย camera process ไม่เคย exit เมื่อ disconnect
-
-3. cv2.CAP_PROP_BUFFERSIZE=1: เราต้องการ frame ล่าสุดเสมอ
-    ไม่ใช่ frame เก่าที่ค้างใน OpenCV internal queue
-    นี่สำคัญมากสำหรับ real-time attendance
-
-4. asyncio.to_thread สำหรับ cap.read(): cap.read() เป็น blocking call
-    offload ไป thread pool เพื่อรักษา event loop ไม่ให้ block
-"""
+"""RTSP Stream Reader ดึงเฟรมจากกล้อง RTSP/Webcam พร้อมระบบ Frame Skipping และ Reconnect อัตโนมัติ"""
 
 from __future__ import annotations
 

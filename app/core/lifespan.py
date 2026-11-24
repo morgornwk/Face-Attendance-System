@@ -1,20 +1,4 @@
-"""
-Application lifespan manager
-
-ลำดับ startup สำคัญมาก:
-1. เชื่อมต่อ Redis
-2. โหลด AI model (blocking ต้องเสร็จก่อน serve request)
-3. สร้าง embedding index จาก DB ใหม่
-4. เริ่ม camera worker เป็น background task
-
-ลำดับ shutdown (ย้อนกลับ):
-1. ส่งสัญญาณให้ camera worker หยุด
-2. รอ task drain
-3. คืน resource (Redis, DB connection)
-
-ถ้ากล้องตัวหนึ่ง fail กล้องอื่นๆ ต้องทำงานต่อ
-asyncio.gather(*tasks, return_exceptions=True) ทำให้แน่ใจเรื่องนี้
-"""
+"""FastAPI Lifespan Manager จัดการการเริ่มต้นระบบ (Redis, MinIO, AI Model, Cache) และการปิดระบบอย่างปลอดภัย"""
 
 from __future__ import annotations
 
@@ -82,7 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown
     logger.info("กำลังปิด application")
     
-    if settings.enable_camera_workers and camera_tasks:
+    if camera_tasks:
         stop_event.set()  # ส่งสัญญาณให้ทุก camera worker หยุด
         await asyncio.gather(*camera_tasks, return_exceptions=True)
 

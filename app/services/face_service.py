@@ -1,32 +1,17 @@
-"""
-Face registration service
-
-Service นี้เป็นเจ้าของ workflow การลงทะเบียนทั้งหมด:
-1. Decode image bytes
-2. ตรวจพบใบหน้าพอดีหนึ่งใบหน้า
-3. ตรวจสอบ quality threshold
-4. Extract และเก็บ embedding
-5. Invalidate recognition cache
-
-การ invalidate embedding cache ผ่าน Redis pub/sub ทำให้
-RTSP processing worker (อาจอยู่ node อื่น) reload index ใน memory
-หลังลงทะเบียนใหม่ได้ทันที
-"""
+"""Service จัดการกระบวนการลงทะเบียนใบหน้า (ตรวจจับ, วัดคุณภาพ, สกัด Embedding, อัปโหลด MinIO)"""
 
 from __future__ import annotations
 
-import io
 import uuid
 from uuid import UUID
 
 import cv2
 import numpy as np
 import structlog
-from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-
+from app.services.embedding_cache_service import EmbeddingCacheService
 from app.services.minio_service import minio_service
 
 from app.ai.engine import face_engine, crop_and_encode_face
@@ -36,6 +21,7 @@ from app.core.exceptions import (
     FaceNotDetectedError,
     ImageQualityError,
     MultipleFacesError,
+    ValidationError,
 )
 from app.models.face_embedding import FaceEmbedding
 from app.repositories.employee import EmployeeRepository
@@ -74,9 +60,8 @@ class FaceRegistrationService:
         faces = await face_engine.analyze_frame(frame)
 
         # ตรวจสอบว่าพบใบหน้าพอดี 1 ใบหน้า
-        if len(faces) == 0:
+        if not faces:
             raise FaceNotDetectedError()
-        # ถ้าพบมากกว่า 1 ใบหน้า
         if len(faces) > 1:
             raise MultipleFacesError()
 
@@ -111,8 +96,6 @@ class FaceRegistrationService:
 
         # Rebuild in-memory index ทันทีหลัง commit
         # ถ้าไม่ rebuild, AI pipeline จะจำพนักงานคนนี้ไม่ได้จนกว่า server restart
-        from app.services.embedding_cache_service import EmbeddingCacheService
-
         cache_service = EmbeddingCacheService(self._session)
         await cache_service.rebuild_index()
 
@@ -130,20 +113,10 @@ class FaceRegistrationService:
         )
 
     @staticmethod
-    # แปลง image bytes เป็น numpy array
     def _decode_image(image_bytes: bytes) -> np.ndarray:
-        # ลองใช้ Pillow ในการ decode เพื่อรองรับ format กว้างขวางขึ้น (.png, .webp, .bmp)
-        try:
-            pil_img = Image.open(io.BytesIO(image_bytes))
-            if pil_img.mode != "RGB":
-                pil_img = pil_img.convert("RGB")
-            # แปลงเป็น BGR สำหรับ OpenCV
-            frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-            return frame
-        except Exception:
-            # ถ้า Pillow decode ไม่สำเร็จ ลอง fallback ไปใช้ OpenCV ซึ่งอาจจะรองรับบางกรณีที่ Pillow ไม่รองรับ
-            nparr = np.frombuffer(image_bytes, np.uint8)
-            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if frame is None:
-                raise FaceNotDetectedError()
-            return frame
+        """แปลง image bytes เป็น BGR numpy array ด้วย OpenCV (รองรับ JPG, PNG, WEBP, BMP)"""
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValidationError("ไม่สามารถอ่านไฟล์ภาพได้ กรุณาตรวจสอบรูปแบบไฟล์")
+        return frame
