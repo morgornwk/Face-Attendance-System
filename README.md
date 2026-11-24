@@ -141,7 +141,16 @@ docker compose down -v
 
 ```bash
 # สั่งรัน OpenCV Desktop Kiosk จำลองหน้าตู้ผ่านเว็บแคมเครื่อง
-python gui/run_kiosk.py
+PYTHONPATH=backend python backend/gui/run_kiosk.py
+```
+
+### 4. รันระบบหน้าบ้าน (React Bento Dashboard)
+
+```bash
+cd frontend
+npm install
+npm run dev
+# เปิดใช้งานได้ที่ http://localhost:5173
 ```
 
 ---
@@ -149,8 +158,8 @@ python gui/run_kiosk.py
 ## 🧪 Testing
 
 ```bash
-# รันการทดสอบระบบและสถาปัตยกรรม Soft Delete ทั้งหมดในทีเดียว
-PYTHONPATH=. ./.venv/bin/pytest -v
+# รันการทดสอบระบบ backend ทั้งหมด
+PYTHONPATH=backend .venv/bin/pytest backend/tests
 ```
 
 ---
@@ -159,23 +168,21 @@ PYTHONPATH=. ./.venv/bin/pytest -v
 
 ```
 .
-├── alembic/           # ไฟล์ควบคุมการอัปเดตและปรับโครงสร้างตารางฐานข้อมูล
-├── app/
-│   ├── ai/            # ตรรกะตรวจจับใบหน้าและวิเคราะห์ AI (InsightFace ONNX)
-│   ├── api/           # ตัวจัดเส้นทางและ Endpoint API ต่างๆ (FastAPI Router v1)
-│   ├── attendance/    # เครื่องมืออ่านเฟรมวิดีโอกล้อง RTSP และประมวลเวลาเข้างานประจำวัน
-│   ├── core/          # ตัวตั้งค่าระบบ, ดักจับข้อผิดพลาด, ระบบเวลาประเทศไทย (Timezone)
-│   ├── database/      # สคริปต์เชื่อมต่อฐานข้อมูล Mixins และคีย์ UUID
-│   ├── models/        # ตาราง ORM Models (สัญญาข้อมูลกับตาราง PostgreSQL)
-│   ├── repositories/  # เลเยอร์จัดการคำสั่งคิวรี SQL หลักแบบตัดการลบตรง
-│   ├── schemas/       # สคีมารองรับและตรวจสอบความถูกต้องของข้อมูล (Pydantic)
-│   └── services/      # บริการหลักของธุรกิจ, การประมวลผลระบบแคช, และการอัปโหลดภาพใบหน้าขึ้น MinIO
-├── docker/            # โฟลเดอร์เก็บคอนฟิกสำหรับรัน Container
-│   ├── Dockerfile     # สคริปต์สร้างอิมเมจสำหรับรัน API ระบบ
-│   └── docker-compose.yml # เชื่อมโยงระบบหลังบ้าน ฐานข้อมูล Redis และ MinIO เข้าด้วยกัน
-├── gui/               # โฟลเดอร์เก็บแอปพลิเคชันหน้าจอ Kiosk
-│   └── run_kiosk.py   # แอปพลิเคชันหน้าตู้จำลองด้วยกล้องเว็บแคมผ่าน OpenCV
-├── tests/             # ไฟล์ทดสอบสคริปต์แบบอัตโนมัติ (Pytest)
-├── requirements.txt   # รายชื่อแพ็กเกจระบบควบคุมการรันภาษา Python
-└── alembic.ini        # คอนฟิกกลางของระบบฐานข้อมูลไมเกรชัน
+├── backend/                  # ระบบหลังบ้านทั้งหมด (FastAPI, AI Pipeline, Kiosk, Tests)
+│   ├── app/                  # FastAPI Application Core, API, Models, Schemas
+│   ├── alembic/              # Database Migrations
+│   ├── docker/               # Dockerfile และ docker-compose.yml
+│   ├── gui/                  # OpenCV Kiosk application
+│   ├── tests/                # Automated pytest test suites
+│   ├── requirements.txt      # Python dependencies
+│   └── alembic.ini           # Alembic configuration
+│
+└── frontend/                 # ระบบหน้าบ้าน (React, TypeScript, Tailwind CSS, Vite)
+    ├── src/
+    │   ├── app/              # Application root & Dashboard orchestrator
+    │   ├── features/         # Feature modules (attendance, employees, system)
+    │   └── shared/           # Reusable UI, Layout, API clients, Types
+    ├── package.json
+    ├── vite.config.ts
+    └── tailwind.config.js
 ```
