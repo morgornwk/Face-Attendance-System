@@ -1,188 +1,164 @@
-# Face Attendance System 🎭
+# Face Attendance System
 
-ระบบหลังบ้าน สำหรับบันทึกเวลาเข้า-ออกงานด้วยใบหน้า พัฒนาด้วย FastAPI ควบคู่กับโมเดล AI InsightFace สำหรับตรวจจับและจำแนกใบหน้า เพื่อแก้ปัญหาภายในองค์กร ช่วยลดต้นทุนของผู้บริหารในการลงทุนกับระบบที่มีอยู่แล้วในท้องตลาด
-
----
-
-## 🌟 Features
-
-1. **สแกนใบหน้าด้วย AI แม่นยำสูง**: ใช้โมเดล InsightFace (`buffalo_l`) เพื่อตรวจจับ, จัดตำแหน่ง และเข้ารหัสลายพิมพ์ใบหน้าได้อย่างแม่นยำสูง
-2. **ตัวเร่งความเร็วฮาร์ดแวร์อัตโนมัติ**: ระบบตรวจจับตัวเร่งความเร็ว (CoreML บน Mac / CUDA บน Nvidia GPU) อัตโนมัติ ปรับปรุงความเร็วในการดึงรอยสแกนใบหน้าขึ้น 7 เท่า (~20ms ต่อเฟรม)
-3. **จัดเก็บรูปภาพตัดเฉพาะ (MinIO Face Crop)**: ครอปเฉพาะส่วนใบหน้าพนักงานด้วยพิกัด AI สตรีมอัปโหลดขึ้นระบบ Object Storage (MinIO S3) แบบ Asynchronous ไร้รอยสะดุด
-4. **แก้ไขเวลาคลาดเคลื่อน (Timezone Asia/Bangkok)**: ล็อกเวลาฐานข้อมูลเป็นเวลาประเทศไทย ป้องกันการเช็คอินผิดปฏิทินเมื่อนำไป Deploy บน Cloud ต่างประเทศ (เช่น AWS/Render ที่เป็น UTC)
-5. **Deduplication Throttling**: ประยุกต์ใช้ Redis ป้องกันสแปมการเช็คอิน/เช็คเอาท์ซ้ำซ้อน ช่วยปกป้องการประมวลผลและการบันทึกฐานข้อมูล PostgreSQL
-6. **อัปเดตผลลัพธ์แบบเรียลไทม์**: Broadcast ผลการเช็คอิน/เช็คเอาท์ส่งตรงไปยังหน้าแดชบอร์ดแบบเสี้ยววินาทีผ่าน WebSockets
+ระบบบันทึกเวลาเข้า-ออกงานด้วยการสแกนใบหน้า (Face Recognition) พัฒนาด้วย FastAPI, InsightFace/ONNX, PostgreSQL, Redis, MinIO และ React Bento Grid UI
 
 ---
 
-## 🛠️ Tech Stack
+## Features
 
-- **Backend Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.11+)
-- **Database**: PostgreSQL (สตรีมผ่าน [SQLAlchemy 2.0](https://www.sqlalchemy.org/) และ AsyncPG)
-- **Object Storage**: [MinIO](https://min.io/) (เก็บไฟล์รูปภาพใบหน้าพนักงาน)
-- **Caching & Throttling**: Redis (ควบคุมและกรองข้อมูลเข้างานซ้ำซ้อน)
-- **AI & Computer Vision**: [InsightFace](https://github.com/deepinsight/insightface), ONNXRuntime, OpenCV, Pillow (รองรับภาพ .png, .jpg, .jpeg, .webp, .bmp)
-
----
-
-## 📚 Data Dictionary
-
-ฐานข้อมูลหลักแบ่งออกเป็น 3 ตารางหลัก ดังนี้:
-
-### 1. Table : employees (ข้อมูลพนักงาน)
-> เก็บประวัติส่วนตัวและสถานะการทำงานทั่วไปของพนักงาน
-
-| Column | Data Type | Constraints | Default | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| id | UUID | PK, ห้ามว่าง | uuid4() | รหัสอ้างอิงพนักงานระดับฐานข้อมูล |
-| employee_code | VARCHAR(50) | Unique, Indexed, ห้ามว่าง | - | รหัสพนักงาน (เช่น EMP-001) ใช้เชื่อมโยงระบบอื่น |
-| full_name | VARCHAR(200) | ห้ามว่าง | - | ชื่อ - นามสกุล ของพนักงาน |
-| department | VARCHAR(100) | Indexed, ห้ามว่าง | - | แผนกหรือฝ่ายที่สังกัด |
-| position | VARCHAR(100) | ห้ามว่าง | - | ตำแหน่งงานของพนักงาน |
-| email | VARCHAR(255) | Unique, ว่างได้ | NULL | อีเมลสำหรับติดต่อ |
-| phone | VARCHAR(20) | ว่างได้ | NULL | เบอร์โทรศัพท์พนักงาน |
-| notes | TEXT | ว่างได้ | NULL | หมายเหตุหรือรายละเอียดเพิ่มเติม |
-| is_active | BOOLEAN | ห้ามว่าง | TRUE | สถานะการทำงาน (TRUE=ยังอยู่, FALSE=พ้นสภาพ) |
-| face_registered | BOOLEAN | ห้ามว่าง | FALSE | สถานะการลงทะเบียนใบหน้า (TRUE=ลงทะเบียนแล้ว) |
-| created_at | TIMESTAMPTZ | ห้ามว่าง | now() | วัน-เวลาที่บันทึกข้อมูลเข้าระบบ |
-| updated_at | TIMESTAMPTZ | ห้ามว่าง | now() | วัน-เวลาที่มีการแก้ไขข้อมูลล่าสุด |
-| deleted_at | TIMESTAMPTZ | ว่างได้ | NULL | วัน-เวลาที่ลบพนักงานออกจากระบบ (Soft Delete) |
+- **AI Face Detection & Recognition**: ตรวจจับ จัดตำแหน่ง และจำแนกลักษณะใบหน้าความแม่นยำสูงด้วย InsightFace / ONNX Runtime
+- **Hardware Acceleration**: รองรับการประมวลผลผ่าน CoreML (Apple Silicon) และ CUDA (Nvidia GPU) อัตโนมัติ
+- **Real-time Attendance**: ระบบบันทึกเวลาเข้า-ออกงานและกระจายข้อมูลสู่แดชบอร์ดทันทีผ่าน WebSocket
+- **Anti-Spam & Deduplication**: ป้องกันการสแกนซ้ำซ้อนด้วย Redis Throttling
+- **Timezone Sync**: จัดการเวลามาตรฐานประเทศไทย (Asia/Bangkok) ครอบคลุมทั้งฐานข้อมูลและระบบประมวลผล
+- **Face Crop Storage**: บันทึกภาพใบหน้าเฉพาะส่วนแบบ Asynchronous ไปยัง MinIO Object Storage
+- **Modern Dashboard**: หน้าจอแดชบอร์ดและจัดการข้อมูลพนักงานสไตล์ Bento Grid พัฒนาด้วย React 18 และ Tailwind CSS
 
 ---
 
-### 2. Table : face_embeddings (ชุดเวกเตอร์ใบหน้าของพนักงาน)
-> เก็บ Biometric Vector ของใบหน้าพนักงาน ใช้สำหรับเปรียบเทียบตอนสแกนเข้างาน
+## Tech Stack
 
-| Column | Data Type | Constraints | Default | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| id | UUID | PK, ห้ามว่าง | uuid4() | รหัสอ้างอิงระดับฐานข้อมูล |
-| employee_id | UUID | FK (employees.id), Unique, ห้ามว่าง | - | เชื่อมกับพนักงาน (1 พนักงาน มีได้ 1 ใบหน้าเท่านั้น) |
-| embedding_vector | BYTEA | ห้ามว่าง | - | เวกเตอร์ลักษณะใบหน้า 512 มิติ ที่ AI คำนวณได้ |
-| model_version | VARCHAR(50) | ห้ามว่าง | - | เวอร์ชันโมเดล AI ที่ใช้ (เช่น buffalo_l_v1) |
-| image_quality_score| FLOAT | ว่างได้ | NULL | คะแนนความคมชัดของภาพถ่ายตอนลงทะเบียน (0.0 - 1.0) |
-| image_url | VARCHAR(512) | ว่างได้ | NULL | ลิงก์รูปภาพใบหน้าพนักงานที่บันทึกไว้ในระบบ MinIO |
-| created_at | TIMESTAMPTZ | ห้ามว่าง | now() | วัน-เวลาที่ลงทะเบียนใบหน้า |
-| updated_at | TIMESTAMPTZ | ห้ามว่าง | now() | วัน-เวลาที่แก้ไขชุดใบหน้าล่าสุด |
-| deleted_at | TIMESTAMPTZ | ว่างได้ | NULL | วัน-เวลาที่ลบชุดข้อมูลใบหน้า (Soft Delete) |
-
-> ⚠️ **หมายเหตุ:** `employee_id` เป็นแบบ **Cascade Delete** หากลบข้อมูลพนักงานในตารางหลัก ใบหน้าในตารางนี้จะถูกลบตามทันที
+- **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0 (AsyncPG), Alembic, Pydantic v2
+- **AI & Vision**: InsightFace, ONNX Runtime, OpenCV, NumPy
+- **Database & Cache**: PostgreSQL 16, Redis 7
+- **Storage**: MinIO (S3 Compatible Storage)
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons
+- **Infrastructure**: Docker, Docker Compose
 
 ---
 
-### 3. Table : attendance_records (ประวัติการสแกนเข้า-ออกงานประจำวัน)
-> เก็บประวัติเวลาการทำงานประจำวันของพนักงานทุกคน
+## Project Structure
 
-| Column | Data Type | Constraints | Default | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| id | UUID | PK, ห้ามว่าง | uuid4() | รหัสอ้างอิงระดับฐานข้อมูล |
-| employee_id | UUID | FK (employees.id), Indexed, ห้ามว่าง | - | พนักงานที่สแกนใบหน้าเข้างาน |
-| work_date | DATE | Indexed, ห้ามว่าง | - | วันที่ทำงาน (อิงตามเวลาไทย Asia/Bangkok เสมอ) |
-| check_in_time | TIMESTAMPTZ | ห้ามว่าง | - | เวลาที่สแกนใบหน้าเข้างานสำเร็จครั้งแรกของวัน |
-| check_out_time | TIMESTAMPTZ | ว่างได้ | NULL | เวลาสแกนออกงานล่าสุด (ระบบจะสลับเช็คเอาท์หลังผ่านไป 10 นาที) |
-| camera_id | VARCHAR(100) | ห้ามว่าง | - | ไอดีกล้องหรืออุปกรณ์ Kiosk ที่ใช้สแกน |
-| confidence_score | FLOAT | ห้ามว่าง | - | คะแนนความแม่นยำของใบหน้า (%) |
-| status | VARCHAR(20) | ห้ามว่าง | 'present' | สถานะ: present (มาทำงานปกติ) |
-| image_url | VARCHAR(512) | ว่างได้ | NULL | ลิงก์รูปภาพถ่ายสดใบหน้าตอนที่สแกนผ่านจริงใน MinIO |
-| created_at | TIMESTAMPTZ | ห้ามว่าง | now() | วัน-เวลาที่สร้างบันทึกนี้เข้าระบบ |
-| updated_at | TIMESTAMPTZ | ห้ามว่าง | now() | วัน-เวลาที่อัปเดตข้อมูลล่าสุด |
-| deleted_at | TIMESTAMPTZ | ว่างได้ | NULL | วัน-เวลาที่ลบบันทึกประวัตินี้ออก (Soft Delete) |
-
-> ⚠️ **หมายเหตุ:** มีดัชนีคีย์ประกอบพิเศษ `UniqueConstraint("employee_id", "work_date")` ควบคุมอยู่เพื่อห้ามสร้างแถวบันทึกเวลาเข้างานซ้ำซ้อนในวันเดียวกัน
-
----
-
-## ⚡ Quick Start
-
-### 1. การใช้งานบนตู้คอนเทนเนอร์ (Docker Environment)
-
-เนื่องจากระบบคอนฟิกทั้งหมดถูกจัดระเบียบและย้ายไปอยู่ที่โฟลเดอร์ `docker/` สคริปต์รันจึงย้ายและควบคุมได้จากที่เดียวกัน:
-
-```bash
-# 1. ย้ายเข้าโฟลเดอร์สำหรับจัดการ Docker
-cd docker
-
-# 2. สั่งเริ่มการทำงานระบบใน Background
-docker compose up -d
-
-# 3. สั่งรันและสร้างอิมเมจระบบใหม่ทั้งหมด
-docker compose up -d --build
-
-# 4. ตรวจสอบการบันทึกสถานะการรัน (Logs)
-docker compose logs -f
-
-# 5. สั่งหยุดการทำงานและล้างข้อมูลจำลอง
-docker compose down -v
+```
+.
+├── backend/
+│   ├── alembic/              # Database migration scripts
+│   ├── app/                  # Backend application source code
+│   │   ├── ai/               # Face detection & recognition engine
+│   │   ├── api/              # FastAPI router endpoints (v1)
+│   │   ├── attendance/       # Real-time attendance processing & tracking
+│   │   ├── core/             # Configuration, logging, timezone, error handlers
+│   │   ├── database/         # Database connection & base models
+│   │   ├── models/           # SQLAlchemy ORM models
+│   │   ├── repositories/     # Data access layer
+│   │   ├── schemas/          # Pydantic validation schemas
+│   │   ├── services/         # Business logic services
+│   │   └── websocket/        # WebSocket connection manager & routes
+│   ├── docker/               # Dockerfile and docker-compose.yml
+│   ├── gui/                  # Desktop Kiosk application (OpenCV)
+│   ├── tests/                # Automated pytest test suite
+│   ├── alembic.ini           # Alembic configuration
+│   └── requirements.txt      # Python dependencies
+├── frontend/
+│   ├── src/                  # Frontend source code
+│   │   ├── app/              # Main App orchestrator
+│   │   ├── features/         # Feature modules (attendance, employees, system)
+│   │   └── shared/           # Reusable UI components, API clients, utilities
+│   ├── package.json          # Frontend dependencies
+│   ├── tailwind.config.js    # Tailwind configuration
+│   └── vite.config.ts        # Vite configuration
+└── README.md
 ```
 
-### 2. ตั้งค่าการรันสำหรับเครื่องพัฒนาหลังบ้าน (FastAPI Server)
+---
 
-1. **สร้างและเรียกใช้งาน Virtual Environment**:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+## Quick Start
 
-2. **ติดตั้ง dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **อัปเดตสคีมาฐานข้อมูล (Run Database Migrations)**:
-   ```bash
-   alembic upgrade head
-   ```
-
-4. **สั่งรันเซิร์ฟเวอร์หลังบ้านเพื่อพัฒนา**:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-### 3. รันแอปพลิเคชันจำลองหน้าตู้นำทางด้วย OpenCV Kiosk
+### 1. Database & Services (Docker)
 
 ```bash
-# สั่งรัน OpenCV Desktop Kiosk จำลองหน้าตู้ผ่านเว็บแคมเครื่อง
-PYTHONPATH=backend python backend/gui/run_kiosk.py
+docker compose -f backend/docker/docker-compose.yml up -d
 ```
 
-### 4. รันระบบหน้าบ้าน (React Bento Dashboard)
+### 2. Backend Server
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+- API Documentation: `http://localhost:8000/docs`
+- Health Check: `http://localhost:8000/health`
+
+### 3. Frontend Dashboard
 
 ```bash
 cd frontend
 npm install
 npm run dev
-# เปิดใช้งานได้ที่ http://localhost:5173
+```
+
+- Dashboard Web App: `http://localhost:5173`
+
+### 4. Desktop Kiosk (Webcam Simulation)
+
+```bash
+PYTHONPATH=backend python backend/gui/run_kiosk.py
 ```
 
 ---
 
-## 🧪 Testing
+## Testing
+
+รันชุดทดสอบระบบหลังบ้านทั้งหมดผ่าน Pytest:
 
 ```bash
-# รันการทดสอบระบบ backend ทั้งหมด
 PYTHONPATH=backend .venv/bin/pytest backend/tests
 ```
 
 ---
 
-## 📂 Directory Structure
+## Database Schema
 
-```
-.
-├── backend/                  # ระบบหลังบ้านทั้งหมด (FastAPI, AI Pipeline, Kiosk, Tests)
-│   ├── app/                  # FastAPI Application Core, API, Models, Schemas
-│   ├── alembic/              # Database Migrations
-│   ├── docker/               # Dockerfile และ docker-compose.yml
-│   ├── gui/                  # OpenCV Kiosk application
-│   ├── tests/                # Automated pytest test suites
-│   ├── requirements.txt      # Python dependencies
-│   └── alembic.ini           # Alembic configuration
-│
-└── frontend/                 # ระบบหน้าบ้าน (React, TypeScript, Tailwind CSS, Vite)
-    ├── src/
-    │   ├── app/              # Application root & Dashboard orchestrator
-    │   ├── features/         # Feature modules (attendance, employees, system)
-    │   └── shared/           # Reusable UI, Layout, API clients, Types
-    ├── package.json
-    ├── vite.config.ts
-    └── tailwind.config.js
-```
+### 1. employees (ข้อมูลพนักงาน)
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| id | UUID | PK | รหัสอ้างอิงพนักงาน |
+| employee_code | VARCHAR(50) | Unique, Indexed | รหัสพนักงาน (เช่น EMP-001) |
+| full_name | VARCHAR(200) | Not Null | ชื่อ-นามสกุล |
+| department | VARCHAR(100) | Indexed | แผนกหรือฝ่าย |
+| position | VARCHAR(100) | Not Null | ตำแหน่งงาน |
+| email | VARCHAR(255) | Unique, Nullable | อีเมล |
+| phone | VARCHAR(20) | Nullable | เบอร์โทรศัพท์ |
+| notes | TEXT | Nullable | หมายเหตุ |
+| is_active | BOOLEAN | Default TRUE | สถานะการทำงาน |
+| face_registered | BOOLEAN | Default FALSE | สถานะการลงทะเบียนใบหน้า |
+| created_at | TIMESTAMPTZ | Not Null | เวลาที่สร้างข้อมูล |
+| updated_at | TIMESTAMPTZ | Not Null | เวลาที่อัปเดตข้อมูล |
+| deleted_at | TIMESTAMPTZ | Nullable | เวลาที่ลบข้อมูล (Soft Delete) |
+
+### 2. face_embeddings (เวกเตอร์ใบหน้า)
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| id | UUID | PK | รหัสอ้างอิงข้อมูลใบหน้า |
+| employee_id | UUID | FK (employees.id), Unique | รหัสพนักงาน (1 คนต่อ 1 ชุดข้อมูล) |
+| embedding_vector | BYTEA | Not Null | Face Embedding 512 มิติ |
+| model_version | VARCHAR(50) | Not Null | รุ่นโมเดล AI ที่ใช้ประมวลผล |
+| image_quality_score | FLOAT | Nullable | คะแนนความคมชัดของภาพ |
+| image_url | VARCHAR(512) | Nullable | URL ภาพใบหน้าใน MinIO |
+| created_at | TIMESTAMPTZ | Not Null | เวลาที่ลงทะเบียนใบหน้า |
+| updated_at | TIMESTAMPTZ | Not Null | เวลาที่แก้ไขล่าสุด |
+| deleted_at | TIMESTAMPTZ | Nullable | เวลาที่ลบข้อมูล (Soft Delete) |
+
+### 3. attendance_records (ประวัติการเข้า-ออกงาน)
+
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| id | UUID | PK | รหัสอ้างอิงบันทึกเวลา |
+| employee_id | UUID | FK (employees.id), Indexed | รหัสพนักงาน |
+| work_date | DATE | Indexed | วันที่ทำงาน (Asia/Bangkok) |
+| check_in_time | TIMESTAMPTZ | Not Null | เวลาเช็คอินแรกของวัน |
+| check_out_time | TIMESTAMPTZ | Nullable | เวลาเช็คเอาท์ล่าสุด |
+| camera_id | VARCHAR(100) | Not Null | รหัสกล้องหรือตู้ Kiosk |
+| confidence_score | FLOAT | Not Null | ค่าความมั่นใจในการจำแนกใบหน้า |
+| status | VARCHAR(20) | Default 'present' | สถานะการเข้างาน |
+| image_url | VARCHAR(512) | Nullable | URL ภาพถ่ายขณะสแกนใน MinIO |
+| created_at | TIMESTAMPTZ | Not Null | เวลาที่สร้างบันทึก |
+| updated_at | TIMESTAMPTZ | Not Null | เวลาที่อัปเดตล่าสุด |
+| deleted_at | TIMESTAMPTZ | Nullable | เวลาที่ลบข้อมูล (Soft Delete) |
