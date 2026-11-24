@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session
 from app.core.timezone import get_local_now, get_local_today
 from app.models.attendance import AttendanceRecord
+from app.models.employee import Employee
 from app.repositories.attendance import AttendanceRepository
 from app.repositories.employee import EmployeeRepository
 from app.schemas.attendance import (
     AttendanceCheckInRequest,
+    AttendanceDistributionItem,
+    AttendanceDistributionResponse,
     AttendanceMonthlySummaryResponse,
     AttendanceRecordResponse,
 )
@@ -106,6 +110,87 @@ async def get_all_today_attendance(
     )
     records = result.scalars().all()
     return [AttendanceRecordResponse.model_validate(r) for r in records]
+
+
+@router.get(
+    "/distribution",
+    response_model=AttendanceDistributionResponse,
+    summary="สถิติการเข้างานรายวันย้อนหลังสำหรับแสดงกราฟจริง",
+)
+async def get_attendance_distribution(
+    days: int = Query(7, ge=1, le=30, description="จำนวนวันที่ต้องการดูสถิติย้อนหลัง"),
+    session: AsyncSession = Depends(get_db_session),
+) -> AttendanceDistributionResponse:
+    """
+    คำนวณสถิติการเข้างานจริงจากฐานข้อมูลรายวันย้อนหลัง (เช่น 7 วัน, 14 วัน หรือ 30 วัน):
+    - นับจำนวนพนักงานที่เข้างานจริงในแต่ละวัน
+    - คำนวณอัตรา On-time rate จากสถานะ present จริง
+    - คำนวณความสูงแท่งกราฟแบบไดนามิกอิงตามข้อมูลจริง
+    """
+    today = get_local_today()
+    start_date = today - timedelta(days=days - 1)
+
+    total_emp = await session.scalar(
+        select(func.count(Employee.id)).where(
+            Employee.deleted_at.is_(None),
+            Employee.is_active == True,
+        )
+    ) or 1
+
+    query = (
+        select(
+            AttendanceRecord.work_date,
+            func.count(AttendanceRecord.id).label("total_count"),
+            func.count(AttendanceRecord.id)
+            .filter(AttendanceRecord.status == "present")
+            .label("on_time_count"),
+        )
+        .where(
+            AttendanceRecord.work_date >= start_date,
+            AttendanceRecord.work_date <= today,
+            AttendanceRecord.deleted_at.is_(None),
+        )
+        .group_by(AttendanceRecord.work_date)
+    )
+
+    rows = (await session.execute(query)).all()
+    date_map = {row.work_date: row for row in rows}
+
+    total_presents = sum(r.total_count for r in rows)
+    total_on_time = sum(r.on_time_count for r in rows)
+    on_time_rate = (
+        round((total_on_time / total_presents * 100), 1)
+        if total_presents > 0
+        else 100.0
+    )
+
+    max_daily_count = max([r.total_count for r in rows] + [1])
+
+    daily_data: list[AttendanceDistributionItem] = []
+    for i in range(days):
+        cur_date = start_date + timedelta(days=i)
+        row = date_map.get(cur_date)
+        count = row.total_count if row else 0
+
+        # คำนวณความสูงขั้นต่ำ 8% สำหรับวันที่ไม่มีคนมา เพื่อคงรูปทรงแท่งกราฟ Pill Bar
+        height_pct = round((count / max(max_daily_count, 1)) * 100, 1) if count > 0 else 8.0
+
+        daily_data.append(
+            AttendanceDistributionItem(
+                date=cur_date,
+                day=cur_date.strftime("%a"),
+                count=count,
+                height=f"{max(height_pct, 8.0):.1f}%",
+                is_today=cur_date == today,
+            )
+        )
+
+    return AttendanceDistributionResponse(
+        days=days,
+        total_active_employees=total_emp,
+        on_time_rate=on_time_rate,
+        daily_data=daily_data,
+    )
 
 
 @router.get(

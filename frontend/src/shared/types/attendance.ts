@@ -39,3 +39,18 @@ export interface AttendanceMonthlySummary {
   attendance_rate: number;
   records: AttendanceRecord[];
 }
+
+export interface AttendanceDistributionItem {
+  date: string;
+  day: string;
+  count: number;
+  height: string;
+  is_today: boolean;
+}
+
+export interface AttendanceDistributionResponse {
+  days: number;
+  total_active_employees: number;
+  on_time_rate: number;
+  daily_data: AttendanceDistributionItem[];
+}

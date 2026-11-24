@@ -40,3 +40,19 @@ class AttendanceMonthlySummaryResponse(BaseModel):
     absent_days: int
     attendance_rate: float
     records: list[AttendanceRecordResponse]
+
+
+class AttendanceDistributionItem(BaseModel):
+    date: date
+    day: str
+    count: int
+    height: str
+    is_today: bool
+
+
+class AttendanceDistributionResponse(BaseModel):
+    days: int
+    total_active_employees: int
+    on_time_rate: float
+    daily_data: list[AttendanceDistributionItem]
+

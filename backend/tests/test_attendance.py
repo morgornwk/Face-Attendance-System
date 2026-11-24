@@ -267,6 +267,14 @@ async def test_today_and_history_endpoints():
             assert len(history) >= 1
             assert history[0].employee_id == emp.id
 
+            # 6. ทดสอบ get_attendance_distribution สำหรับแสดงกราฟสถิติรายวัน
+            from app.api.v1.attendance import get_attendance_distribution
+            distribution = await get_attendance_distribution(days=7, session=session)
+            assert distribution.days == 7
+            assert len(distribution.daily_data) == 7
+            assert distribution.daily_data[-1].is_today is True
+            assert distribution.daily_data[-1].count >= 1
+
             await session.rollback()
     finally:
         await async_engine.dispose()

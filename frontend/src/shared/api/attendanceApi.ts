@@ -3,6 +3,7 @@ import {
   AttendanceRecord,
   AttendanceCheckInPayload,
   AttendanceMonthlySummary,
+  AttendanceDistributionResponse,
 } from '../types/attendance';
 
 export const attendanceApi = {
@@ -15,6 +16,10 @@ export const attendanceApi = {
 
   getTodaySummary: async (): Promise<AttendanceRecord[]> => {
     return apiClient<AttendanceRecord[]>('/api/v1/attendance/today-summary');
+  },
+
+  getDistribution: async (days: number = 7): Promise<AttendanceDistributionResponse> => {
+    return apiClient<AttendanceDistributionResponse>(`/api/v1/attendance/distribution?days=${days}`);
   },
 
   getToday: async (employeeId: string): Promise<AttendanceRecord | null> => {
