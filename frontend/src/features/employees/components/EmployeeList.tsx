@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Search,
   ScanFace,
@@ -13,14 +13,19 @@ import { Button } from '../../../shared/components/ui/Button';
 import { Badge } from '../../../shared/components/ui/Badge';
 import { Avatar } from '../../../shared/components/ui/Avatar';
 import { Employee } from '../../../shared/types/employee';
+import { useEmployees } from '../hooks/useEmployees';
+import { useToast } from '../../../shared/components/ui/Toast';
+import { EmployeeFormModal } from './EmployeeFormModal';
+import { FaceRegisterModal } from './FaceRegisterModal';
+import { AttendanceHistoryModal } from '../../attendance/components/AttendanceHistoryModal';
 
 interface EmployeeListProps {
-  employees: Employee[];
-  isLoading: boolean;
-  onOpenCreateModal: () => void;
-  onOpenEditModal: (emp: Employee) => void;
-  onOpenFaceModal: (emp: Employee) => void;
-  onDeactivate: (id: string) => Promise<void>;
+  employees?: Employee[];
+  isLoading?: boolean;
+  onOpenCreateModal?: () => void;
+  onOpenEditModal?: (emp: Employee) => void;
+  onOpenFaceModal?: (emp: Employee) => void;
+  onDeactivate?: (id: string) => Promise<void>;
   onSelectForHistory?: (emp: Employee) => void;
 }
 
@@ -143,16 +148,80 @@ const EmployeeRow = React.memo<EmployeeRowProps>(({
 EmployeeRow.displayName = 'EmployeeRow';
 
 export const EmployeeList: React.FC<EmployeeListProps> = ({
-  employees,
-  isLoading,
-  onOpenCreateModal,
-  onOpenEditModal,
-  onOpenFaceModal,
-  onDeactivate,
-  onSelectForHistory,
+  employees: propEmployees,
+  isLoading: propIsLoading,
+  onOpenCreateModal: propOnOpenCreate,
+  onOpenEditModal: propOnOpenEdit,
+  onOpenFaceModal: propOnOpenFace,
+  onDeactivate: propOnDeactivate,
+  onSelectForHistory: propOnSelectForHistory,
 }) => {
+  // Self-contained hooks fallback
+  const internalHooks = useEmployees();
+  const { showToast } = useToast();
+
+  const employees = propEmployees ?? internalHooks.employees;
+  const isLoading = propIsLoading ?? internalHooks.isLoading;
+
+  // Internal modal states for self-contained mode
+  const [internalCreateOpen, setInternalCreateOpen] = useState(false);
+  const [internalEditingEmp, setInternalEditingEmp] = useState<Employee | null>(null);
+  const [internalFaceEmp, setInternalFaceEmp] = useState<Employee | null>(null);
+  const [internalHistoryEmp, setInternalHistoryEmp] = useState<Employee | null>(null);
+  const [internalHistoryOpen, setInternalHistoryOpen] = useState(false);
+
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('All');
+
+  // Self-contained handlers
+  const handleCreate = propOnOpenCreate || (() => setInternalCreateOpen(true));
+  const handleEdit = propOnOpenEdit || ((emp: Employee) => setInternalEditingEmp(emp));
+  const handleFace = propOnOpenFace || ((emp: Employee) => setInternalFaceEmp(emp));
+  const handleHistory = propOnSelectForHistory || ((emp: Employee) => {
+    setInternalHistoryEmp(emp);
+    setInternalHistoryOpen(true);
+  });
+  const handleDeactivate = propOnDeactivate || (async (id: string) => {
+    try {
+      await internalHooks.deactivateEmployee(id);
+      showToast('Employee deactivated successfully', 'info');
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to deactivate employee', 'error');
+    }
+  });
+
+  const handleInternalCreateSubmit = useCallback(async (data: any) => {
+    try {
+      const created = await internalHooks.createEmployee(data);
+      showToast(`Employee ${created.full_name} created successfully!`, 'success');
+      setInternalCreateOpen(false);
+      setInternalFaceEmp(created);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to create employee', 'error');
+    }
+  }, [internalHooks, showToast]);
+
+  const handleInternalEditSubmit = useCallback(async (data: any) => {
+    if (!internalEditingEmp) return;
+    try {
+      await internalHooks.updateEmployee(internalEditingEmp.id, data);
+      showToast('Employee updated successfully', 'success');
+      setInternalEditingEmp(null);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update employee', 'error');
+    }
+  }, [internalEditingEmp, internalHooks, showToast]);
+
+  const handleInternalRegisterFace = useCallback(async (id: string, file: File) => {
+    try {
+      const res = await internalHooks.registerFace(id, file);
+      showToast('Face biometric registered successfully!', 'success');
+      return res;
+    } catch (err: any) {
+      showToast(err?.message || 'Face registration failed', 'error');
+      throw err;
+    }
+  }, [internalHooks, showToast]);
 
   const departments = [
     'All',
@@ -170,98 +239,136 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
   });
 
   return (
-    <BentoCard className="p-6">
-      {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-100">
-        <div>
-          <h3 className="text-lg font-bold text-neutral-900">
-            Employee Directory
-          </h3>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Total {employees.length} team members registered
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Filter by name, code..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-full pl-9 pr-3 py-1.5 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
+    <>
+      <BentoCard className="p-6">
+        {/* Header and Controls */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-100">
+          <div>
+            <h3 className="text-lg font-bold text-neutral-900">
+              Employee Directory
+            </h3>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Total {employees.length} team members registered
+            </p>
           </div>
 
-          <Button size="sm" onClick={onOpenCreateModal}>
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Add Member</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Filter by name, code..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-full pl-9 pr-3 py-1.5 text-xs text-neutral-800 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
+            </div>
+
+            <Button size="sm" onClick={handleCreate}>
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Add Member</span>
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Department Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto py-4 scrollbar-none">
-        {departments.map((dept) => (
-          <button
-            key={dept}
-            onClick={() => setSelectedDept(dept)}
-            className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
-              selectedDept === dept
-                ? 'bg-[#111827] text-white'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            }`}
-          >
-            {dept}
-          </button>
-        ))}
-      </div>
+        {/* Department Filter Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto py-4 scrollbar-none">
+          {departments.map((dept) => (
+            <button
+              key={dept}
+              onClick={() => setSelectedDept(dept)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                selectedDept === dept
+                  ? 'bg-[#111827] text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              {dept}
+            </button>
+          ))}
+        </div>
 
-      {/* Table / List */}
-      <div className="overflow-x-auto transform-gpu">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-neutral-100 text-neutral-400 text-[11px] font-semibold uppercase tracking-wider">
-              <th className="py-3 px-3">Employee</th>
-              <th className="py-3 px-3">Department & Position</th>
-              <th className="py-3 px-3">Biometrics</th>
-              <th className="py-3 px-3">Status</th>
-              <th className="py-3 px-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="py-12 text-center text-neutral-400">
-                  <div className="flex justify-center items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-neutral-400 animate-ping" />
-                    Loading directory...
-                  </div>
-                </td>
+        {/* Table / List */}
+        <div className="overflow-x-auto transform-gpu">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-neutral-100 text-neutral-400 text-[11px] font-semibold uppercase tracking-wider">
+                <th className="py-3 px-3">Employee</th>
+                <th className="py-3 px-3">Department & Position</th>
+                <th className="py-3 px-3">Biometrics</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3 text-right">Actions</th>
               </tr>
-            ) : filteredEmployees.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="py-12 text-center text-neutral-400">
-                  No employees found matching filter.
-                </td>
-              </tr>
-            ) : (
-              filteredEmployees.map((emp) => (
-                <EmployeeRow
-                  key={emp.id}
-                  emp={emp}
-                  onOpenEditModal={onOpenEditModal}
-                  onOpenFaceModal={onOpenFaceModal}
-                  onDeactivate={onDeactivate}
-                  onSelectForHistory={onSelectForHistory}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </BentoCard>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-neutral-400">
+                    <div className="flex justify-center items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-neutral-400 animate-ping" />
+                      Loading directory...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-neutral-400">
+                    No employees found matching filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((emp) => (
+                  <EmployeeRow
+                    key={emp.id}
+                    emp={emp}
+                    onOpenEditModal={handleEdit}
+                    onOpenFaceModal={handleFace}
+                    onDeactivate={handleDeactivate}
+                    onSelectForHistory={handleHistory}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </BentoCard>
+
+      {/* Feature Modals */}
+      {!propOnOpenCreate && (
+        <EmployeeFormModal
+          isOpen={internalCreateOpen}
+          onClose={() => setInternalCreateOpen(false)}
+          onSubmit={handleInternalCreateSubmit}
+        />
+      )}
+
+      {!propOnOpenEdit && (
+        <EmployeeFormModal
+          isOpen={Boolean(internalEditingEmp)}
+          onClose={() => setInternalEditingEmp(null)}
+          onSubmit={handleInternalEditSubmit}
+          employee={internalEditingEmp}
+        />
+      )}
+
+      {!propOnOpenFace && (
+        <FaceRegisterModal
+          isOpen={Boolean(internalFaceEmp)}
+          onClose={() => setInternalFaceEmp(null)}
+          employee={internalFaceEmp}
+          onRegisterFace={handleInternalRegisterFace}
+        />
+      )}
+
+      {!propOnSelectForHistory && (
+        <AttendanceHistoryModal
+          isOpen={internalHistoryOpen}
+          onClose={() => setInternalHistoryOpen(false)}
+          employees={employees}
+          initialEmployee={internalHistoryEmp}
+        />
+      )}
+    </>
   );
 };

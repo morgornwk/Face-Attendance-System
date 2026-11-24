@@ -16,11 +16,14 @@ import { Employee } from '../../../shared/types/employee';
 import { AttendanceRecord, AttendanceEvent } from '../../../shared/types/attendance';
 import { attendanceApi } from '../../../shared/api/attendanceApi';
 import { formatTime } from '../../../shared/utils/formatters';
+import { useEmployees } from '../../employees/hooks/useEmployees';
+import { useAttendanceWebSocket } from '../hooks/useAttendanceWebSocket';
+import { EmployeeCalendarModal } from './EmployeeCalendarModal';
 
-interface AttendanceMasterViewProps {
-  employees: Employee[];
-  events: AttendanceEvent[];
-  onOpenCalendarModal: (employee: Employee) => void;
+export interface AttendanceMasterViewProps {
+  employees?: Employee[];
+  events?: AttendanceEvent[];
+  onOpenCalendarModal?: (employee: Employee) => void;
 }
 
 export type AttendanceFilterTab = 'all' | 'present' | 'absent' | 'late';
@@ -118,10 +121,18 @@ const AttendanceRow = React.memo<AttendanceRowProps>(({
 AttendanceRow.displayName = 'AttendanceRow';
 
 export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
-  employees,
-  events,
-  onOpenCalendarModal,
+  employees: propEmployees,
+  events: propEvents,
+  onOpenCalendarModal: propOnOpenCalendar,
 }) => {
+  const employeeHooks = useEmployees();
+  const wsHooks = useAttendanceWebSocket();
+  const employees = propEmployees ?? employeeHooks.employees;
+  const events = propEvents ?? wsHooks.events;
+
+  const [internalCalendarEmp, setInternalCalendarEmp] = useState<Employee | null>(null);
+  const handleCalendar = propOnOpenCalendar || ((emp: Employee) => setInternalCalendarEmp(emp));
+
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([]);
   const [filterTab, setFilterTab] = useState<AttendanceFilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -401,7 +412,7 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
                     key={emp.id}
                     emp={emp}
                     record={recordMap.get(emp.id)}
-                    onOpenCalendarModal={onOpenCalendarModal}
+                    onOpenCalendarModal={handleCalendar}
                   />
                 ))
               )}
@@ -409,6 +420,14 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           </table>
         </div>
       </BentoCard>
+
+      {!propOnOpenCalendar && (
+        <EmployeeCalendarModal
+          isOpen={Boolean(internalCalendarEmp)}
+          onClose={() => setInternalCalendarEmp(null)}
+          employee={internalCalendarEmp}
+        />
+      )}
     </div>
   );
 };

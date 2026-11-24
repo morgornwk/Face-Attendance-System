@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Plus, Bell, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 interface HeaderProps {
   title: string;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onOpenRegisterModal: () => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  onOpenRegisterModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +15,10 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   onOpenRegisterModal,
 }) => {
+  const [internalQuery, setInternalQuery] = useState('');
+  const query = searchQuery !== undefined ? searchQuery : internalQuery;
+  const setQuery = onSearchChange || setInternalQuery;
+
   return (
     <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6">
       <div>
@@ -29,22 +33,24 @@ export const Header: React.FC<HeaderProps> = ({
           <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search anything..."
             className="w-full bg-white border border-neutral-200/80 rounded-full pl-10 pr-4 py-2 text-xs text-neutral-800 placeholder:text-neutral-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 transition-all"
           />
         </div>
 
         {/* Primary Action Button: + Create */}
-        <Button
-          onClick={onOpenRegisterModal}
-          size="sm"
-          className="shadow-sm font-semibold shrink-0 bg-[#111827] text-white hover:bg-black rounded-full px-4 py-2"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1" />
-          <span>Create</span>
-        </Button>
+        {onOpenRegisterModal && (
+          <Button
+            onClick={onOpenRegisterModal}
+            size="sm"
+            className="shadow-sm font-semibold shrink-0 bg-[#111827] text-white hover:bg-black rounded-full px-4 py-2"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            <span>Create</span>
+          </Button>
+        )}
 
         {/* Round Icon Button: Bell */}
         <button
