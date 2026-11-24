@@ -56,3 +56,29 @@ async def test_embedding_index_matching():
     assert match_stranger is not None
     assert match_stranger.similarity < 0.2
     assert match_stranger.is_confident is False  # ไม่บันทึก/ปฏิเสธเป็นคนแปลกหน้า
+
+
+@pytest.mark.asyncio
+async def test_embedding_index_empty_and_clear():
+    """ทดสอบกรณี Index ว่างเปล่า (Empty Index) และการล้างข้อมูล (Rebuild Clear)"""
+    index = EmployeeEmbeddingIndex()
+
+    # 1. Index ว่างเปล่า -> ค้นหาต้องคืนค่า None เสมอ ไม่ Error
+    probe = np.random.randn(512).astype(np.float32)
+    probe = probe / np.linalg.norm(probe)
+
+    assert index.size == 0
+    match = await index.find_match(probe)
+    assert match is None
+
+    # 2. เพิ่มข้อมูลเข้าไป
+    emp_id = uuid4()
+    await index.rebuild({emp_id: probe})
+    assert index.size == 1
+
+    # 3. ล้างข้อมูลด้วย dict ว่างเปล่า -> size ต้องเป็น 0 และค้นหาได้ None
+    await index.rebuild({})
+    assert index.size == 0
+    match_cleared = await index.find_match(probe)
+    assert match_cleared is None
+

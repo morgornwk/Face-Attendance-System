@@ -58,6 +58,7 @@ class EmployeeResponse(EmployeeBase):
     id: UUID
     is_active: bool
     face_registered: bool
+    face_image_url: str | None = None
     created_at: datetime
     updated_at: datetime
 

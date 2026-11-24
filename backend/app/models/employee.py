@@ -35,7 +35,14 @@ class Employee(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
         back_populates="employee",
         uselist=False,
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
     attendance_records: Mapped[list["AttendanceRecord"]] = relationship(  # noqa: F821
         "AttendanceRecord", back_populates="employee", cascade="all, delete-orphan"
     )
+
+    @property
+    def face_image_url(self) -> str | None:
+        if self.face_embedding and self.face_embedding.deleted_at is None:
+            return self.face_embedding.image_url
+        return None

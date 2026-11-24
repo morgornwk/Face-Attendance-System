@@ -22,17 +22,21 @@ class AttendanceRecordResponse(BaseModel):
     created_at: datetime
 
 
-class AttendanceQueryParams(BaseModel):
-    start_date: date
-    end_date: date
-    employee_id: UUID | None = None
+class AttendanceCheckInRequest(BaseModel):
+    employee_id: UUID
+    camera_id: str = "web-kiosk"
+    confidence_score: float = 0.985
+    status: str = "present"  # "present" | "late"
 
-    @model_validator(mode="after")
-    def validate_date_range(self) -> "AttendanceQueryParams":
-        """ตรวจสอบช่วงวันที่ห้ามเกิน 90 วัน ป้องกัน query ที่หนักเกินไป"""
-        if self.end_date < self.start_date:
-            raise ValueError("end_date must be >= start_date")
-        delta = (self.end_date - self.start_date).days
-        if delta > 90:
-            raise ValueError("Date range cannot exceed 90 days")
-        return self
+
+class AttendanceMonthlySummaryResponse(BaseModel):
+    employee_id: UUID
+    year: int
+    month: int
+    total_days: int
+    working_days: int
+    present_days: int
+    late_days: int
+    absent_days: int
+    attendance_rate: float
+    records: list[AttendanceRecordResponse]

@@ -6,6 +6,7 @@ from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.employee import Employee
@@ -16,6 +17,25 @@ class EmployeeRepository(BaseRepository[Employee]):
     # EmployeeRepository จะสืบทอดจาก BaseRepository โดยระบุ ModelT เป็น Employee
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(Employee, session)
+
+    async def get_by_id(self, entity_id: UUID) -> Employee | None:
+        stmt = self._not_deleted(
+            select(Employee)
+            .options(selectinload(Employee.face_embedding))
+            .where(Employee.id == entity_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_all(self, *, limit: int = 100, offset: int = 0) -> Sequence[Employee]:
+        stmt = self._not_deleted(
+            select(Employee)
+            .options(selectinload(Employee.face_embedding))
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
 
     async def get_by_employee_code(self, code: str) -> Employee | None:
         """ค้นหาพนักงานด้วยรหัสพนักงาน"""

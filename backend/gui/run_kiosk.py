@@ -29,7 +29,7 @@ from app.repositories.face_embedding import FaceEmbeddingRepository
 from app.services.embedding_cache_service import EmbeddingCacheService
 from app.services.minio_service import minio_service
 
-# ── Color Palette (BGR) ──────────────────────────────────────────────
+# Color Palette (BGR)
 C_ACCENT     = (220, 200, 20)    # Teal สีหลัก
 C_ACCENT_DIM = (120, 110, 10)    # Teal หม่น
 C_SUCCESS    = (90, 215, 80)     # เขียว (เช็คอิน)
@@ -41,10 +41,10 @@ C_GRAY       = (155, 155, 155)
 C_DIM        = (90, 90, 90)
 C_BG         = (28, 25, 22)
 
-# ── Constants ────────────────────────────────────────────────────────
+# Constants
 MIN_DET_SCORE       = 0.60         # เพิ่มเป็น 0.60 เพื่อกรองสิ่งที่ไม่ใช่คนและใบหน้าที่เบลอ/ไกลเกินออก
 MIN_REGISTER_SCORE  = 0.70         # เพิ่มเป็น 0.70 เพื่อรับประกันความคมชัดตอนลงทะเบียนใบหน้าพนักงานใหม่
-CHECKOUT_WAIT_SEC   = 600        # 10 นาที
+CHECKOUT_WAIT_SEC   = 600          # 10 นาที
 CAMERA_W, CAMERA_H  = 1280, 720
 HEADER_H, FOOTER_H  = 62, 42
 DETECT_EVERY_N       = 3           # รัน AI ทุก N เฟรม (ประหยัด CPU 60-70%)
@@ -61,7 +61,7 @@ _DEFAULT_STATUS = (C_INFO, "SCANNING")
 
 _vignette_cache: dict = {}
 
-# ── Drawing Primitives ───────────────────────────────────────────────
+# Drawing Primitives
 
 _FONT = cv2.FONT_HERSHEY_SIMPLEX
 _AA   = cv2.LINE_AA
@@ -108,7 +108,7 @@ def _vignette(h, w, strength=0.35):
     return _vignette_cache[(h, w)]
 
 
-# ── UI Components ────────────────────────────────────────────────────
+# UI Components
 
 def draw_header(frame, fps, n_reg, n_det):
     """Header bar — live dot + ชื่อระบบ + stats"""
@@ -273,14 +273,14 @@ def draw_toast(frame, message):
     _put(frame, message, (tx1+38, ty1+th//2+6), 0.60, C_WHITE, 2)
 
 
-# ── Helpers ──────────────────────────────────────────────────────────
+# Helpers
 
 def _make_event(etype, name, score, emp_id):
     return {"type": etype, "name": name, "time": datetime.now().strftime("%H:%M:%S"),
             "score": score, "emp_id": emp_id}
 
 
-# ── Registration Flow ────────────────────────────────────────────────
+# Registration Flow
 
 async def register_face_flow(frame, engine, session_factory):
     """ลงทะเบียนใบหน้า: detect → ตรวจซ้ำ → สร้าง employee → บันทึก embedding"""
@@ -296,7 +296,7 @@ async def register_face_flow(frame, engine, session_factory):
 
     emb_bytes = face.embedding.tobytes()
 
-    # ดักซ้ำ — ตรวจว่าใบหน้านี้เคยลงทะเบียนแล้วหรือยัง
+    # ดักซ้ำ ตรวจว่าใบหน้านี้เคยลงทะเบียนแล้วหรือยัง
     match = await embedding_index.find_match(face.embedding)
     if match and match.is_confident:
         async with session_factory() as s:
@@ -350,7 +350,7 @@ async def _load_employee_names(session_factory) -> dict[str, str]:
         return {str(e.id): e.full_name for e in await EmployeeRepository(s).get_active_employees()}
 
 
-# ── Key Handlers ─────────────────────────────────────────────────────
+# Key Handlers
 
 async def _handle_register(frame, emp_names):
     """ปุ่ม R — ลงทะเบียนใบหน้า"""
@@ -401,7 +401,7 @@ def _handle_force(emp_id, name, conf, emp_status, events, action):
     return label, time.monotonic() + 3.0
 
 
-# ── Recognition Logic ────────────────────────────────────────────────
+# Recognition Logic
 
 async def _recognize(face, emp_names, emp_status, events):
     """จับคู่ใบหน้า + จัดการเช็คอิน/เช็คเอาท์อัตโนมัติ → (name, emp_id, conf, status)"""
@@ -449,7 +449,7 @@ async def _recognize(face, emp_names, emp_status, events):
     return name, eid, conf, st["status"]
 
 
-# ── Main Loop ────────────────────────────────────────────────────────
+# Main Loop
 
 async def main():
     # โหลด AI + embedding index + รายชื่อพนักงาน
@@ -541,11 +541,9 @@ async def main():
                 reg_frame = clean_frame if clean_frame is not None else frame
                 msg, msg_until = await _handle_register(reg_frame, emp_names)
             elif key in (ord("i"), ord("I")):
-                msg, msg_until = _handle_force(active_id, active_name, active_conf,
-                                               emp_status, events, "check_in")
+                msg, msg_until = _handle_force(active_id, active_name, active_conf, emp_status, events, "check_in")
             elif key in (ord("o"), ord("O")):
-                msg, msg_until = _handle_force(active_id, active_name, active_conf,
-                                               emp_status, events, "check_out")
+                msg, msg_until = _handle_force(active_id, active_name, active_conf, emp_status, events, "check_out")
     except KeyboardInterrupt:
         pass
     finally:

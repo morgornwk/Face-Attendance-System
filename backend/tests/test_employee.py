@@ -5,12 +5,12 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
-from app.core.exceptions import EmployeeCodeConflictError
+from app.core.exceptions import EmployeeCodeConflictError, EmployeeNotFoundError
 from app.models.employee import Employee
 from app.database.session import async_session_factory, async_engine
 from app.repositories.employee import EmployeeRepository
 from app.services.employee_service import EmployeeService
-from app.schemas.employee import EmployeeCreate
+from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 
 
 @pytest.mark.asyncio
@@ -209,6 +209,56 @@ async def test_employee_lifecycle_flow():
             assert raw_emp is not None
             assert raw_emp.is_active is False
             assert raw_emp.deleted_at is not None
+
+            await session.rollback()
+    finally:
+        await async_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_update_employee_service():
+    """ทดสอบการอัปเดตข้อมูลพนักงาน (PATCH / Update semantics)"""
+    try:
+        async with async_session_factory() as session:
+            service = EmployeeService(session)
+
+            emp_code = f"TEST-UPD-{uuid4()}".upper()[:20]
+            data = EmployeeCreate(
+                employee_code=emp_code,
+                full_name="Original Name",
+                department="Support",
+                position="Agent",
+            )
+            created = await service.create_employee(data)
+            await session.flush()
+
+            # อัปเดตเฉพาะแผนกและตำแหน่ง
+            update_data = EmployeeUpdate(
+                full_name="Updated Name",
+                position="Senior Agent",
+            )
+            updated = await service.update_employee(created.id, update_data)
+            await session.flush()
+
+            assert updated.full_name == "Updated Name"
+            assert updated.position == "Senior Agent"
+            assert updated.department == "Support"  # ค่าเดิมไม่เปลี่ยน
+
+            await session.rollback()
+    finally:
+        await async_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_get_employee_not_found():
+    """ทดสอบค้นหาพนักงานที่ไม่มีอยู่จริง (EmployeeNotFoundError)"""
+    try:
+        async with async_session_factory() as session:
+            service = EmployeeService(session)
+            non_existent_id = uuid4()
+
+            with pytest.raises(EmployeeNotFoundError):
+                await service.get_employee(non_existent_id)
 
             await session.rollback()
     finally:
