@@ -20,11 +20,10 @@ export const AttendanceChart: React.FC = React.memo(() => {
       setDaysData(res.daily_data);
       setOnTimeRate(res.on_time_rate);
 
-      // Default active bar is today or the latest record
       const todayIdx = res.daily_data.findIndex((d) => d.is_today);
       setActiveDay(todayIdx >= 0 ? todayIdx : res.daily_data.length - 1);
     } catch (err) {
-      console.error('Failed to load real attendance distribution:', err);
+      console.error('Failed to load attendance distribution:', err);
     } finally {
       setIsLoading(false);
     }
@@ -36,7 +35,7 @@ export const AttendanceChart: React.FC = React.memo(() => {
 
   return (
     <BentoCard className="p-6 md:p-8 bg-white border border-neutral-200/80 shadow-bento rounded-3xl">
-      {/* Header */}
+      {/* Header & Filter Controls */}
       <div className="flex items-center justify-between pb-6">
         <div>
           <h4 className="text-base font-bold text-neutral-900">
@@ -65,9 +64,8 @@ export const AttendanceChart: React.FC = React.memo(() => {
         </div>
       </div>
 
-      {/* Main Grid: Real Metric on left, vertical bars on right */}
+      {/* Metrics & Bar Chart */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pt-4">
-        {/* Large Metric on bottom left calculated from real records */}
         <div className="pb-2">
           <span className="text-4xl sm:text-5xl font-extrabold text-neutral-900 tracking-tight">
             {isLoading ? '...' : `${onTimeRate.toFixed(1)}%`}
@@ -77,7 +75,6 @@ export const AttendanceChart: React.FC = React.memo(() => {
           </p>
         </div>
 
-        {/* Vertical Bars Container */}
         <div className="flex items-end justify-end gap-2 sm:gap-3.5 h-48 overflow-x-auto scrollbar-none pb-1">
           {isLoading ? (
             <div className="w-full flex items-center justify-center h-36 text-neutral-400 gap-2">
@@ -98,7 +95,6 @@ export const AttendanceChart: React.FC = React.memo(() => {
                   onClick={() => setActiveDay(index)}
                   title={`${item.date}: ${item.count} checked in`}
                 >
-                  {/* Floating pill badge showing real check-in count */}
                   {isActive ? (
                     <div className="relative -mb-1 animate-in fade-in duration-200">
                       <div className="bg-[#111827] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-md flex items-center gap-1 whitespace-nowrap">
@@ -108,10 +104,9 @@ export const AttendanceChart: React.FC = React.memo(() => {
                       <div className="w-1.5 h-1.5 bg-[#111827] rotate-45 mx-auto -mt-0.5" />
                     </div>
                   ) : (
-                    <div className="h-5" /> // Spacer for consistent alignment
+                    <div className="h-5" />
                   )}
 
-                  {/* Pill Bar */}
                   <div className="w-7 sm:w-9 h-36 bg-transparent flex items-end justify-center">
                     <div
                       style={{ height: item.height }}
@@ -125,7 +120,6 @@ export const AttendanceChart: React.FC = React.memo(() => {
                     />
                   </div>
 
-                  {/* Day Label */}
                   <span
                     className={`text-xs font-semibold transition-colors ${
                       isActive

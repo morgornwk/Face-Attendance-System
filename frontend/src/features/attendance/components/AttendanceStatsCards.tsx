@@ -32,24 +32,20 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
 }) => {
   const [timeRange, setTimeRange] = useState('Today');
 
-  // Real data calculations
   const totalEmployees = employees.length;
   const registeredFacesCount = employees.filter((e) => e.face_registered).length;
   const pendingFacesCount = totalEmployees - registeredFacesCount;
 
-  // Real today check-in IDs from WebSocket / events
   const checkedInIds = new Set(
     events.filter((e) => e.event_type === 'check_in').map((e) => e.employee_id)
   );
   const presentCount = checkedInIds.size;
   const attendanceRate = totalEmployees > 0 ? (presentCount / totalEmployees) * 100 : 0;
 
-  // Render registered employees to fill the horizontal strip across the card
   const displayEmployees = employees.slice(0, 30);
 
   return (
     <BentoCard className="p-6 md:p-8 space-y-6 bg-white border border-neutral-200/80 shadow-bento rounded-3xl">
-      {/* 1. Header Row inside Overview Bento Card */}
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-neutral-900 tracking-tight">
           Overview
@@ -68,9 +64,7 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
         </div>
       </div>
 
-      {/* 2. Real Stat Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Card 1: Real Total Staff */}
         <div className="bg-neutral-50/70 border border-neutral-200/60 rounded-2xl p-6 transition-all hover:bg-neutral-50">
           <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500 mb-2">
             <div className="w-6 h-6 rounded-full bg-neutral-200/80 flex items-center justify-center text-neutral-700">
@@ -108,7 +102,6 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
           </p>
         </div>
 
-        {/* Card 2: Real Present / Attendance Rate */}
         <div className="bg-neutral-50/70 border border-neutral-200/60 rounded-2xl p-6 transition-all hover:bg-neutral-50">
           <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500 mb-2">
             <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
@@ -132,7 +125,6 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
         </div>
       </div>
 
-      {/* 3. Real Employee Horizontal List */}
       <div className="pt-2">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -154,7 +146,6 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
           </Button>
         </div>
 
-        {/* When no employees exist yet: show a clean banner prompt */}
         {totalEmployees === 0 ? (
           <div className="p-8 rounded-2xl border-2 border-dashed border-neutral-200 bg-neutral-50/50 flex flex-col items-center justify-center text-center space-y-3">
             <div className="w-12 h-12 rounded-full bg-white border border-neutral-200 flex items-center justify-center text-neutral-400 shadow-sm">
@@ -170,7 +161,6 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
             </div>
           </div>
         ) : (
-          /* When employees exist: render real employee avatars and data */
           <div className="flex items-center gap-6 overflow-x-auto py-2 px-1 scrollbar-none">
             {displayEmployees.map((emp) => (
               <div
@@ -211,7 +201,6 @@ export const AttendanceStatsCards: React.FC<AttendanceStatsCardsProps> = React.m
               </div>
             ))}
 
-            {/* View all circular button at the end of the full employee list */}
             {totalEmployees > 0 && (
               <div
                 className="flex flex-col items-center gap-2 shrink-0 cursor-pointer group pl-2"

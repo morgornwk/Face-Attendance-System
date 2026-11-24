@@ -28,7 +28,6 @@ export const LiveAttendanceFeed: React.FC<LiveAttendanceFeedProps> = React.memo(
   return (
     <BentoCard className="p-6 md:p-8 bg-white border border-neutral-200/80 shadow-bento rounded-3xl flex flex-col justify-between">
       <div>
-        {/* Header */}
         <div className="flex items-center justify-between pb-5 border-b border-neutral-100">
           <div>
             <h4 className="text-base font-bold text-neutral-900">
@@ -56,7 +55,6 @@ export const LiveAttendanceFeed: React.FC<LiveAttendanceFeedProps> = React.memo(
           </Badge>
         </div>
 
-        {/* Real Stream / Employee Items */}
         <div className="divide-y divide-neutral-100 mt-1">
           {hasLiveEvents ? (
             displayEvents.map((event, idx) => {
@@ -146,7 +144,6 @@ export const LiveAttendanceFeed: React.FC<LiveAttendanceFeedProps> = React.memo(
         </div>
       </div>
 
-      {/* Button at bottom */}
       <div className="pt-5 border-t border-neutral-100 mt-2">
         <Button
           variant="outline"

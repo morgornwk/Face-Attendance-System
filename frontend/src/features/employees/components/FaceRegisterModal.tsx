@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, Upload, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Camera, Upload, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Modal } from '../../../shared/components/ui/Modal';
 import { Button } from '../../../shared/components/ui/Button';
 import { Badge } from '../../../shared/components/ui/Badge';
@@ -11,7 +11,7 @@ interface FaceRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   employee: Employee | null;
-  onRegisterFace: (id: string, file: File) => Promise<FaceRegistrationResponse>;
+  onRegisterFace: (employeeId: string, file: File) => Promise<FaceRegistrationResponse>;
 }
 
 export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
@@ -27,13 +27,11 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FaceRegistrationResponse | null>(null);
 
-  // Camera state
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
-  // Stop camera tracks cleanly
   const stopCamera = useCallback(() => {
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -42,7 +40,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     setCameraActive(false);
   }, []);
 
-  // Start live webcam stream
   const startCamera = useCallback(async () => {
     stopCamera();
     setCameraError(null);
@@ -56,7 +53,7 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
         await videoRef.current.play().catch(() => {});
       }
       setCameraActive(true);
-    } catch (err: any) {
+    } catch {
       setCameraError(
         'Unable to access camera. Please allow camera permissions in your browser or upload a photo directly.'
       );
@@ -64,7 +61,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     }
   }, [stopCamera]);
 
-  // Handle modal open/close & mode switch
   useEffect(() => {
     if (isOpen && mode === 'camera') {
       startCamera();
@@ -76,7 +72,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     };
   }, [isOpen, mode, startCamera, stopCamera]);
 
-  // Reset state when closing modal
   useEffect(() => {
     if (!isOpen) {
       setSelectedFile(null);
@@ -87,7 +82,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     }
   }, [isOpen, stopCamera]);
 
-  // Capture frame from webcam
   const captureSnapshot = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
@@ -97,7 +91,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Flip horizontally to match selfie mirror
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -116,14 +109,12 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     }, 'image/jpeg', 0.95);
   };
 
-  // Handle Retake button - instantly reveals active video or restarts if needed
   const handleRetake = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
     setResult(null);
 
-    // If stream was paused or inactive, restart
     if (mode === 'camera' && (!mediaStreamRef.current || !mediaStreamRef.current.active)) {
       startCamera();
     } else if (videoRef.current && mediaStreamRef.current) {
@@ -132,7 +123,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
     }
   };
 
-  // Handle local file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -169,7 +159,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
       maxWidth="lg"
     >
       <div className="space-y-5">
-        {/* Mode selector pills */}
         {!result && (
           <div className="flex bg-neutral-100 p-1 rounded-2xl w-fit">
             <button
@@ -206,7 +195,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
           </div>
         )}
 
-        {/* Success View */}
         {result && (
           <div className="p-6 bg-emerald-50/70 border border-emerald-200 rounded-3xl text-center space-y-4">
             <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
@@ -236,7 +224,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
           </div>
         )}
 
-        {/* Error message */}
         {error && (
           <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-2xl flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
@@ -249,7 +236,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
 
         {!result && (
           <div className="relative overflow-hidden rounded-3xl bg-neutral-950 flex items-center justify-center min-h-[340px] border border-neutral-200/50">
-            {/* Live Camera View - Always stays mounted in DOM when mode is camera to avoid race conditions */}
             {mode === 'camera' && (
               <video
                 ref={videoRef}
@@ -262,7 +248,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
               />
             )}
 
-            {/* Guideline and capture button when live and no preview */}
             {mode === 'camera' && !previewUrl && (
               <>
                 {cameraError ? (
@@ -291,7 +276,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
               </>
             )}
 
-            {/* Upload Zone */}
             {mode === 'upload' && !previewUrl && (
               <label className="w-full h-[340px] flex flex-col items-center justify-center cursor-pointer p-6 bg-neutral-50/50 hover:bg-neutral-100/50 transition-colors border-2 border-dashed border-neutral-300 rounded-3xl">
                 <div className="w-14 h-14 rounded-2xl bg-white shadow-sm border border-neutral-200 flex items-center justify-center mb-3 text-neutral-500">
@@ -312,7 +296,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
               </label>
             )}
 
-            {/* Preview of captured or uploaded image */}
             {previewUrl && (
               <div className="relative w-full h-[340px] bg-black flex items-center justify-center">
                 <img
@@ -333,7 +316,6 @@ export const FaceRegisterModal: React.FC<FaceRegisterModalProps> = ({
           </div>
         )}
 
-        {/* Action Controls */}
         {!result && (
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-neutral-500 font-medium">

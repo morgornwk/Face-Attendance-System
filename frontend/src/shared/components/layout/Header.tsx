@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3 w-full sm:w-auto">
-        {/* Search bar matching reference */}
+        {/* Search Bar */}
         <div className="relative flex-1 sm:w-72">
           <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -40,7 +40,6 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
-        {/* Primary Action Button: + Create */}
         {onOpenRegisterModal && (
           <Button
             onClick={onOpenRegisterModal}
@@ -52,7 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
           </Button>
         )}
 
-        {/* Round Icon Button: Bell */}
         <button
           className="w-9 h-9 rounded-full bg-white border border-neutral-200/80 flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 shadow-sm transition-colors"
           title="Notifications"
@@ -60,7 +58,6 @@ export const Header: React.FC<HeaderProps> = ({
           <Bell className="w-4 h-4" />
         </button>
 
-        {/* Round Icon Button: Message */}
         <button
           className="w-9 h-9 rounded-full bg-white border border-neutral-200/80 flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50 shadow-sm transition-colors"
           title="Messages"
@@ -68,7 +65,6 @@ export const Header: React.FC<HeaderProps> = ({
           <MessageSquare className="w-4 h-4" />
         </button>
 
-        {/* Profile Avatar Portrait */}
         <div className="w-9 h-9 rounded-full overflow-hidden border border-neutral-200 shadow-sm shrink-0">
           <img
             src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80"

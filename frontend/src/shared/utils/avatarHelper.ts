@@ -1,34 +1,23 @@
 import { Employee } from '../types/employee';
 
-// High-performance in-memory cache for avatar lookups (avoids synchronous disk I/O on render)
 const avatarCache = new Map<string, string | null>();
 const failedImageUrls = new Set<string>();
 
-/**
- * Marks an image URL as failed (e.g. 404, connection refused)
- * so no component in the entire app will ever attempt to fetch it again.
- */
 export function markAvatarUrlFailed(url: string | null | undefined): void {
   if (url) {
     failedImageUrls.add(url);
   }
 }
 
-/**
- * Checks whether an image URL has already failed to load.
- */
 export function isAvatarUrlFailed(url: string | null | undefined): boolean {
   if (!url) return false;
   return failedImageUrls.has(url);
 }
 
-/**
- * Resolves the face photo for an employee with zero disk I/O on scroll.
- */
 export function getEmployeeFacePhoto(employee?: Employee | null): string | null {
   if (!employee) return null;
 
-  // 1. Instant O(1) in-memory cache check (0ms)
+  // In-memory cache lookup
   if (avatarCache.has(employee.id)) {
     const cached = avatarCache.get(employee.id);
     if (cached && !failedImageUrls.has(cached)) {
@@ -39,8 +28,7 @@ export function getEmployeeFacePhoto(employee?: Employee | null): string | null 
     }
   }
 
-  // 2. Real image URL from MinIO storage (mapped to port 9002 on host)
-  // Ignore dummy 'fake-uuid' URLs from test seeders to avoid network congestion
+  // MinIO storage URL mapping
   if (
     employee.face_image_url &&
     !employee.face_image_url.includes('fake-uuid') &&
@@ -53,7 +41,7 @@ export function getEmployeeFacePhoto(employee?: Employee | null): string | null 
     }
   }
 
-  // 3. Fallback to localStorage once per session, then store in memory
+  // Local storage fallback
   try {
     const local = localStorage.getItem(`employee_face_${employee.id}`);
     if (local) {
@@ -61,21 +49,18 @@ export function getEmployeeFacePhoto(employee?: Employee | null): string | null 
       return local;
     }
   } catch {
-    // Ignore localStorage errors
+    // Ignore storage errors
   }
 
   avatarCache.set(employee.id, null);
   return null;
 }
 
-/**
- * Saves a registered face photo to cache and localStorage.
- */
 export function saveEmployeeFacePhoto(employeeId: string, photoDataUrl: string): void {
   avatarCache.set(employeeId, photoDataUrl);
   try {
     localStorage.setItem(`employee_face_${employeeId}`, photoDataUrl);
   } catch {
-    // Storage quota might be exceeded for large data URLs
+    // Ignore storage quota errors
   }
 }

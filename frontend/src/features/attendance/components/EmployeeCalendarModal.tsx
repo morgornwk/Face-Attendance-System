@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Modal } from '../../../shared/components/ui/Modal';
 import { Badge } from '../../../shared/components/ui/Badge';
 import { Avatar } from '../../../shared/components/ui/Avatar';
@@ -24,16 +21,16 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
 }) => {
   const currentDate = new Date();
   const [year, setYear] = useState<number>(currentDate.getFullYear());
-  const [month, setMonth] = useState<number>(currentDate.getMonth() + 1); // 1-12
+  const [month, setMonth] = useState<number>(currentDate.getMonth() + 1);
   const [summary, setSummary] = useState<AttendanceMonthlySummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchMonthlySummary = useCallback(async () => {
     if (!employee) return;
     try {
       setIsLoading(true);
-      const data = await attendanceApi.getMonthlySummary(employee.id, year, month);
-      setSummary(data);
+      const res = await attendanceApi.getMonthlySummary(employee.id, year, month);
+      setSummary(res);
     } catch {
       // Ignore
     } finally {
@@ -43,9 +40,9 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
 
   useEffect(() => {
     if (isOpen && employee) {
-      fetchSummary();
+      fetchMonthlySummary();
     }
-  }, [isOpen, employee, fetchSummary]);
+  }, [isOpen, employee, fetchMonthlySummary]);
 
   const handlePrevMonth = () => {
     if (month === 1) {
@@ -80,7 +77,6 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
     'December (ธันวาคม)',
   ];
 
-  // Map records by day
   const recordsByDay = new Map<number, AttendanceRecord>();
   if (summary) {
     summary.records.forEach((rec) => {
@@ -91,9 +87,8 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
 
   const totalDaysInMonth = new Date(year, month, 0).getDate();
   const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
-  const startOffset = (firstDayOfWeek + 6) % 7; // Monday = 0
+  const startOffset = (firstDayOfWeek + 6) % 7;
 
-  // Today reference strings
   const today = new Date();
   const todayYear = today.getFullYear();
   const todayMonth = today.getMonth() + 1;
@@ -113,7 +108,6 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
       maxWidth="4xl"
     >
       <div className="space-y-6">
-        {/* Employee Card & Month Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-neutral-50 border border-neutral-200/80">
           <div className="flex items-center gap-3">
             <Avatar employee={employee} size="md" />
@@ -125,7 +119,6 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
             </div>
           </div>
 
-          {/* Month Selector */}
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrevMonth}
@@ -145,7 +138,6 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
           </div>
         </div>
 
-        {/* 4 Summary Metric Pills */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3.5 rounded-2xl bg-white border border-neutral-200 shadow-xs">
             <p className="text-[11px] font-bold text-neutral-400 uppercase">วันทำงานทั้งหมด</p>
@@ -159,9 +151,7 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
             <p className="text-[11px] font-bold text-emerald-700 uppercase">เข้างาน (Present)</p>
             <p className="text-2xl font-extrabold text-emerald-700 mt-0.5">
               {summary ? summary.present_days : '--'}{' '}
-              <span className="text-xs font-bold text-emerald-600 bg-white px-2 py-0.5 rounded-full border border-emerald-200">
-                {summary ? `${summary.attendance_rate}%` : '0%'}
-              </span>
+              <span className="text-xs font-normal text-emerald-600">วัน</span>
             </p>
           </div>
 
@@ -169,7 +159,7 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
             <p className="text-[11px] font-bold text-amber-700 uppercase">มาสาย (Late)</p>
             <p className="text-2xl font-extrabold text-amber-700 mt-0.5">
               {summary ? summary.late_days : '--'}{' '}
-              <span className="text-xs font-normal text-neutral-400">ครั้ง</span>
+              <span className="text-xs font-normal text-amber-600">วัน</span>
             </p>
           </div>
 
@@ -177,12 +167,11 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
             <p className="text-[11px] font-bold text-rose-700 uppercase">ขาดงาน (Absent)</p>
             <p className="text-2xl font-extrabold text-rose-700 mt-0.5">
               {summary ? summary.absent_days : '--'}{' '}
-              <span className="text-xs font-normal text-neutral-400">วัน</span>
+              <span className="text-xs font-normal text-rose-600">วัน</span>
             </p>
           </div>
         </div>
 
-        {/* Calendar Grid Header */}
         <div>
           <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-neutral-400 uppercase tracking-wider pb-2 border-b border-neutral-100">
             <div>จันทร์ (Mon)</div>
@@ -194,14 +183,11 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
             <div className="text-neutral-300">อาทิตย์ (Sun)</div>
           </div>
 
-          {/* Calendar Grid Cells */}
           <div className="grid grid-cols-7 gap-2 pt-2.5">
-            {/* Empty Spacers */}
             {Array.from({ length: startOffset }).map((_, i) => (
               <div key={`empty-${i}`} className="h-20 rounded-2xl bg-neutral-50/40" />
             ))}
 
-            {/* Days in Month */}
             {Array.from({ length: totalDaysInMonth }).map((_, i) => {
               const dayNum = i + 1;
               const curDateStr = `${year}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
@@ -209,13 +195,9 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
               const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
               const record = recordsByDay.get(dayNum);
 
-              // Date status checks:
               const isToday = curDateStr === todayStr;
               const isPast = curDateStr < todayStr;
               const isFuture = curDateStr > todayStr;
-
-              // ขาดงาน = เป็นวันทำงานในอดีต (ที่ผ่านมาแล้ว) และไม่มีบันทึกเวลา!
-              // วันในอนาคต (isFuture) จะไม่มีวันขึ้นว่าขาดงานเด็ดขาด!
               const isAbsent = isPast && !isWeekend && !record;
 
               return (
@@ -228,44 +210,47 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
                       ? 'bg-neutral-50/50 border-neutral-100 text-neutral-400'
                       : record
                       ? record.status === 'late'
-                        ? 'bg-amber-50/40 border-amber-200'
-                        : 'bg-emerald-50/40 border-emerald-200'
+                        ? 'bg-amber-50/50 border-amber-200'
+                        : 'bg-emerald-50/50 border-emerald-200'
                       : isAbsent
-                      ? 'bg-rose-50/30 border-rose-200'
-                      : 'bg-white border-neutral-200/60'
+                      ? 'bg-rose-50/40 border-rose-200/80'
+                      : 'bg-white border-neutral-200/70 hover:border-neutral-300'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`text-xs font-bold ${
+                      className={`text-xs font-bold leading-none ${
                         isToday
-                          ? 'w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[11px]'
+                          ? 'w-5 h-5 rounded-full bg-neutral-900 text-white flex items-center justify-center -ml-0.5 -mt-0.5'
                           : isWeekend
                           ? 'text-neutral-400'
-                          : 'text-neutral-800'
+                          : 'text-neutral-700'
                       }`}
                     >
                       {dayNum}
                     </span>
 
-                    {record && (
+                    {record ? (
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          record.status === 'late' ? 'bg-amber-500' : 'bg-emerald-500'
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          record.status === 'late'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-emerald-100 text-emerald-800'
                         }`}
-                      />
-                    )}
-                    {isAbsent && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+                      >
+                        {record.status === 'late' ? 'สาย' : 'มา'}
+                      </span>
+                    ) : isAbsent ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800">
+                        ขาด
+                      </span>
+                    ) : null}
                   </div>
 
-                  <div>
+                  <div className="font-mono text-right">
                     {record ? (
-                      <div className="text-[10px] font-bold text-emerald-800 truncate">
-                        เข้า: {formatTime(record.check_in_time)}
-                      </div>
-                    ) : isAbsent ? (
-                      <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md inline-block">
-                        ขาดงาน
+                      <span className="text-[10px] font-bold text-neutral-900 block leading-tight">
+                        {formatTime(record.check_in_time)}
                       </span>
                     ) : isWeekend ? (
                       <span className="text-[9px] text-neutral-400">วันหยุด</span>
@@ -281,7 +266,6 @@ export const EmployeeCalendarModal: React.FC<EmployeeCalendarModalProps> = ({
           </div>
         </div>
 
-        {/* Legend */}
         <div className="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs text-neutral-500">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">

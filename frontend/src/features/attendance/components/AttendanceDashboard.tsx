@@ -39,7 +39,6 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
   onOpenHistoryModal: propOnOpenHistory,
   onNavigateEmployees,
 }) => {
-  // Internal hooks fallback
   const employeeHooks = useEmployees();
   const wsHooks = useAttendanceWebSocket();
   const healthHooks = useSystemHealth();
@@ -52,7 +51,6 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
   const isHealthChecking = propIsHealthChecking ?? healthHooks.isChecking;
   const healthError = propHealthError ?? healthHooks.error;
 
-  // Internal modals for self-contained usage
   const [internalCreateOpen, setInternalCreateOpen] = useState(false);
   const [internalFaceEmp, setInternalFaceEmp] = useState<Employee | null>(null);
   const [internalHistoryEmp, setInternalHistoryEmp] = useState<Employee | null>(null);
@@ -89,8 +87,9 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
 
   return (
     <>
+      {/* Overview Stats & Chart Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left 2 Columns: Overview Stats & Chart */}
+        {/* Left Column: Stats & Chart */}
         <div className="xl:col-span-8 flex flex-col gap-6">
           <AttendanceStatsCards
             employees={employees}
@@ -99,11 +98,10 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             onOpenCreate={handleCreate}
             onOpenFaceModal={handleFace}
           />
-
           <AttendanceChart />
         </div>
 
-        {/* Right Column: Live Stream & System Health */}
+        {/* Right Column: Live Feed & System Health */}
         <div className="xl:col-span-4 flex flex-col gap-6">
           <LiveAttendanceFeed
             events={events}
@@ -111,7 +109,6 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
             wsStatus={wsStatus}
             onOpenHistoryModal={handleHistory}
           />
-
           <SystemStatusCard
             health={health}
             isChecking={isHealthChecking}
@@ -120,7 +117,6 @@ export const AttendanceDashboard: React.FC<AttendanceDashboardProps> = ({
         </div>
       </div>
 
-      {/* Internal Modals */}
       {!propOnOpenCreate && (
         <EmployeeFormModal
           isOpen={internalCreateOpen}

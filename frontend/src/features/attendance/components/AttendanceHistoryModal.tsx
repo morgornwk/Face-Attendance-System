@@ -81,7 +81,6 @@ export const AttendanceHistoryModal: React.FC<AttendanceHistoryModalProps> = ({
       maxWidth="4xl"
     >
       <div className="space-y-5">
-        {/* Filter controls */}
         <div className="flex flex-wrap items-center gap-3 p-4 bg-neutral-50 rounded-2xl border border-neutral-200/70">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-1">
@@ -145,7 +144,6 @@ export const AttendanceHistoryModal: React.FC<AttendanceHistoryModalProps> = ({
           </div>
         )}
 
-        {/* Table Results */}
         <div className="overflow-x-auto rounded-2xl border border-neutral-200/80">
           <table className="w-full text-left text-xs">
             <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-500 font-semibold uppercase tracking-wider">

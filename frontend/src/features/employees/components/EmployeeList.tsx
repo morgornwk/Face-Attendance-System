@@ -94,7 +94,6 @@ const EmployeeRow = React.memo<EmployeeRowProps>(({
 
       <td className="py-3.5 px-3 text-right">
         <div className="flex items-center justify-end gap-1.5">
-          {/* Face Register Button */}
           <button
             onClick={() => onOpenFaceModal(emp)}
             title="Register Face Embedding"
@@ -103,7 +102,6 @@ const EmployeeRow = React.memo<EmployeeRowProps>(({
             <ScanFace className="w-4 h-4" />
           </button>
 
-          {/* Edit Employee */}
           <button
             onClick={() => onOpenEditModal(emp)}
             title="Edit Details"
@@ -112,7 +110,6 @@ const EmployeeRow = React.memo<EmployeeRowProps>(({
             <Edit3 className="w-4 h-4" />
           </button>
 
-          {/* Attendance History */}
           {onSelectForHistory && (
             <button
               onClick={() => onSelectForHistory(emp)}
@@ -123,14 +120,9 @@ const EmployeeRow = React.memo<EmployeeRowProps>(({
             </button>
           )}
 
-          {/* Deactivate */}
           <button
             onClick={() => {
-              if (
-                confirm(
-                  `Are you sure you want to deactivate ${emp.full_name}?`
-                )
-              ) {
+              if (confirm(`Are you sure you want to deactivate ${emp.full_name}?`)) {
                 onDeactivate(emp.id);
               }
             }}
@@ -156,14 +148,12 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
   onDeactivate: propOnDeactivate,
   onSelectForHistory: propOnSelectForHistory,
 }) => {
-  // Self-contained hooks fallback
   const internalHooks = useEmployees();
   const { showToast } = useToast();
 
   const employees = propEmployees ?? internalHooks.employees;
   const isLoading = propIsLoading ?? internalHooks.isLoading;
 
-  // Internal modal states for self-contained mode
   const [internalCreateOpen, setInternalCreateOpen] = useState(false);
   const [internalEditingEmp, setInternalEditingEmp] = useState<Employee | null>(null);
   const [internalFaceEmp, setInternalFaceEmp] = useState<Employee | null>(null);
@@ -173,7 +163,6 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('All');
 
-  // Self-contained handlers
   const handleCreate = propOnOpenCreate || (() => setInternalCreateOpen(true));
   const handleEdit = propOnOpenEdit || ((emp: Employee) => setInternalEditingEmp(emp));
   const handleFace = propOnOpenFace || ((emp: Employee) => setInternalFaceEmp(emp));
@@ -241,7 +230,7 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
   return (
     <>
       <BentoCard className="p-6">
-        {/* Header and Controls */}
+        {/* Header & Search Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-100">
           <div>
             <h3 className="text-lg font-bold text-neutral-900">
@@ -253,7 +242,6 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Search */}
             <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -289,7 +277,7 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
           ))}
         </div>
 
-        {/* Table / List */}
+        {/* Employee Table */}
         <div className="overflow-x-auto transform-gpu">
           <table className="w-full text-left text-sm">
             <thead>
@@ -334,7 +322,6 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
         </div>
       </BentoCard>
 
-      {/* Feature Modals */}
       {!propOnOpenCreate && (
         <EmployeeFormModal
           isOpen={internalCreateOpen}

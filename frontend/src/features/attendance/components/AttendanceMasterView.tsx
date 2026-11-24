@@ -28,7 +28,6 @@ export interface AttendanceMasterViewProps {
 
 export type AttendanceFilterTab = 'all' | 'present' | 'absent' | 'late';
 
-// Memoized table row for smooth 60fps scrolling
 interface AttendanceRowProps {
   emp: Employee;
   record?: AttendanceRecord;
@@ -45,7 +44,6 @@ const AttendanceRow = React.memo<AttendanceRowProps>(({
 
   return (
     <tr className="hover:bg-neutral-50/70 transition-colors group">
-      {/* Column 1: Employee */}
       <td className="py-3.5 px-3">
         <div className="flex items-center gap-3">
           <Avatar employee={emp} size="sm" />
@@ -60,13 +58,11 @@ const AttendanceRow = React.memo<AttendanceRowProps>(({
         </div>
       </td>
 
-      {/* Column 2: Dept & Position */}
       <td className="py-3.5 px-3">
         <p className="font-semibold text-neutral-800">{emp.position}</p>
         <p className="text-[11px] text-neutral-400">{emp.department}</p>
       </td>
 
-      {/* Column 3: Check-in Time */}
       <td className="py-3.5 px-3 font-mono">
         {record ? (
           <span className="font-bold text-emerald-700">
@@ -77,7 +73,6 @@ const AttendanceRow = React.memo<AttendanceRowProps>(({
         )}
       </td>
 
-      {/* Column 4: Check-out Time */}
       <td className="py-3.5 px-3 font-mono text-neutral-600">
         {record?.check_out_time ? (
           <span className="font-semibold">{formatTime(record.check_out_time)}</span>
@@ -86,7 +81,6 @@ const AttendanceRow = React.memo<AttendanceRowProps>(({
         )}
       </td>
 
-      {/* Column 5: Status Badge */}
       <td className="py-3.5 px-3">
         {isPresent ? (
           <Badge variant={isLate ? 'warning' : 'success'} size="sm">
@@ -99,10 +93,8 @@ const AttendanceRow = React.memo<AttendanceRowProps>(({
         )}
       </td>
 
-      {/* Column 6: Actions */}
       <td className="py-3.5 px-3 text-right">
         <div className="flex items-center justify-end">
-          {/* View Full Monthly Calendar */}
           <Button
             size="sm"
             variant="secondary"
@@ -138,7 +130,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('All');
 
-  // Fetch today's attendance records in 1 single fast API call
   const fetchTodayRecords = useCallback(async () => {
     try {
       const records = await attendanceApi.getTodaySummary();
@@ -152,21 +143,18 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
     fetchTodayRecords();
   }, [fetchTodayRecords]);
 
-  // When a live WebSocket event arrives from Kiosk / Camera, refresh today's records
   useEffect(() => {
     if (events.length > 0) {
       fetchTodayRecords();
     }
   }, [events, fetchTodayRecords]);
 
-  // Map today's records by employee_id for O(1) instant lookup
   const recordMap = useMemo(() => {
     const map = new Map<string, AttendanceRecord>();
     todayRecords.forEach((r) => map.set(r.employee_id, r));
     return map;
   }, [todayRecords]);
 
-  // Compute real organization metrics
   const totalEmployees = employees.length;
   const presentEmployees = employees.filter((e) => recordMap.has(e.id));
   const presentCount = presentEmployees.length;
@@ -174,7 +162,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
   const absentCount = Math.max(0, totalEmployees - presentCount);
   const attendanceRate = totalEmployees > 0 ? (presentCount / totalEmployees) * 100 : 0;
 
-  // Filter employees based on Tab, Search, and Department
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       const record = recordMap.get(emp.id);
@@ -182,15 +169,12 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
       const isLate = record?.status === 'late';
       const isAbsent = !isPresent;
 
-      // Tab filter
       if (filterTab === 'present' && !isPresent) return false;
       if (filterTab === 'absent' && !isAbsent) return false;
       if (filterTab === 'late' && !isLate) return false;
 
-      // Department filter
       if (selectedDept !== 'All' && emp.department !== selectedDept) return false;
 
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchName = emp.full_name.toLowerCase().includes(q);
@@ -204,16 +188,14 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
     });
   }, [employees, recordMap, filterTab, selectedDept, searchQuery]);
 
-  // Departments list
   const departments = useMemo(() => {
     return ['All', ...Array.from(new Set(employees.map((e) => e.department).filter(Boolean)))];
   }, [employees]);
 
   return (
     <div className="space-y-6">
-      {/* 1. Header & Real-time Metrics (4 Cards) */}
+      {/* Summary Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {/* Card 1: พนักงานทั้งหมด */}
         <BentoCard
           className={`p-5 cursor-pointer transition-all ${
             filterTab === 'all' ? 'ring-2 ring-neutral-900 shadow-md' : 'hover:bg-neutral-50'
@@ -231,7 +213,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           <p className="text-[11px] text-neutral-400 mt-1">อัตราเข้างาน {attendanceRate.toFixed(0)}%</p>
         </BentoCard>
 
-        {/* Card 2: เข้างานแล้ววันนี้ */}
         <BentoCard
           className={`p-5 cursor-pointer transition-all ${
             filterTab === 'present' ? 'ring-2 ring-emerald-600 shadow-md bg-emerald-50/20' : 'hover:bg-neutral-50'
@@ -251,7 +232,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           <p className="text-[11px] text-neutral-400 mt-1">บันทึกผ่าน AI Face Kiosk</p>
         </BentoCard>
 
-        {/* Card 3: ยังไม่เข้างาน / ขาดงานวันนี้ */}
         <BentoCard
           className={`p-5 cursor-pointer transition-all ${
             filterTab === 'absent' ? 'ring-2 ring-rose-600 shadow-md bg-rose-50/20' : 'hover:bg-neutral-50'
@@ -271,7 +251,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           <p className="text-[11px] text-neutral-400 mt-1">ยังไม่มีการสแกนใบหน้าที่ตู้ Kiosk</p>
         </BentoCard>
 
-        {/* Card 4: มาสาย */}
         <BentoCard
           className={`p-5 cursor-pointer transition-all ${
             filterTab === 'late' ? 'ring-2 ring-amber-600 shadow-md bg-amber-50/20' : 'hover:bg-neutral-50'
@@ -290,9 +269,7 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
         </BentoCard>
       </div>
 
-      {/* 2. Master Table & Filters */}
       <BentoCard className="p-6">
-        {/* Header and Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-neutral-100">
           <div>
             <h3 className="text-lg font-bold text-neutral-900">
@@ -304,7 +281,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Search Input */}
             <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -323,7 +299,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           </div>
         </div>
 
-        {/* Tab Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-4 border-b border-neutral-100">
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
             <button
@@ -368,7 +343,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
             </button>
           </div>
 
-          {/* Department Chips */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
             {departments.map((dept) => (
               <button
@@ -386,7 +360,6 @@ export const AttendanceMasterView: React.FC<AttendanceMasterViewProps> = ({
           </div>
         </div>
 
-        {/* Master Table with GPU Acceleration */}
         <div className="overflow-x-auto transform-gpu">
           <table className="w-full text-left text-xs">
             <thead className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-100">
